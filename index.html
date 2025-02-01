@@ -19,7 +19,7 @@
       import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.150.1/examples/jsm/webxr/ARButton.js';
 
       let scene, camera, renderer;
-      let controller;
+      let controllerLeft, controllerRight;
       let bullets = []; // Track active bullets
       let targets = []; // Track target objects for collision detection
       const explosionDuration = 0.5; // seconds
@@ -61,10 +61,14 @@
 
         // No virtual floor is added since the real-world floor is visible via passthrough.
 
-        // Set up the controller if available.
-        controller = renderer.xr.getController(0);
-        controller.addEventListener('select', onSelect);
-        scene.add(controller);
+        // Set up both left and right controllers.
+        controllerLeft = renderer.xr.getController(0);
+        controllerLeft.addEventListener('select', onSelect);
+        scene.add(controllerLeft);
+
+        controllerRight = renderer.xr.getController(1);
+        controllerRight.addEventListener('select', onSelect);
+        scene.add(controllerRight);
 
         // Create some sample target objects (floating boxes) as placeholders.
         const boxGeometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
@@ -92,29 +96,24 @@
         window.addEventListener('resize', onWindowResize, false);
       }
 
-      // Event handler: called when a "select" event occurs (e.g., a controller tap or button press).
-      function onSelect() {
+      // Event handler: called when a "select" event occurs on either controller.
+      function onSelect(event) {
+        // 'this' or event.target refers to the controller that triggered the event.
+        const controller = event.target;
+
         // Create a small sphere to represent a bullet.
         const bulletGeometry = new THREE.SphereGeometry(0.02, 16, 16);
         const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
         const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
 
-        // Position the bullet at the controller's position if available, or the camera's position.
-        if (controller && controller.position) {
-          bullet.position.copy(controller.position);
-        } else {
-          bullet.position.copy(camera.position);
-        }
+        // Position the bullet at the controller's position.
+        bullet.position.copy(controller.position);
         scene.add(bullet);
 
-        // Determine the forward direction: use the controller’s quaternion if available; otherwise use the camera’s.
+        // Determine the forward direction using the controller's quaternion.
         const speed = 0.1;
         const direction = new THREE.Vector3(0, 0, -1);
-        if (controller && controller.quaternion) {
-          direction.applyQuaternion(controller.quaternion);
-        } else {
-          direction.applyQuaternion(camera.quaternion);
-        }
+        direction.applyQuaternion(controller.quaternion);
         bullet.userData.velocity = direction.multiplyScalar(speed);
 
         // Add the bullet to our array so it can be updated each frame.
@@ -138,8 +137,6 @@
         }
 
         // Check for collisions between bullets and targets.
-        // Using a simple sphere collision test: if the distance between the bullet and target
-        // is less than a threshold, consider it a hit.
         for (let i = bullets.length - 1; i >= 0; i--) {
           const bullet = bullets[i];
           for (let j = targets.length - 1; j >= 0; j--) {
@@ -168,11 +165,11 @@
             target.userData.explodeTime += delta;
             const progress = target.userData.explodeTime / explosionDuration;
             // Scale up the target (simulate explosion)
-            const scaleFactor = 1 + progress * 1.5; // Adjust explosion intensity here.
+            const scaleFactor = 1 + progress * 1.5;
             target.scale.set(scaleFactor, scaleFactor, scaleFactor);
             // Fade out the target.
             target.material.opacity = 1 - progress;
-            // Optionally, you could add a rotation for extra effect.
+            // Add rotation for extra effect.
             target.rotation.x += delta * 2;
             target.rotation.y += delta * 2;
             // Once the explosion animation is complete, remove the target.
