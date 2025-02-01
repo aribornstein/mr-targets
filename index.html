@@ -32,8 +32,7 @@
       let uiMesh, uiTexture, uiContext;
       const uiCanvasWidth = 512;
       const uiCanvasHeight = 256;
-
-      // How far to fallback if no boundary intersection is found.
+      // Fallback panel distance if no bounded reference space is available.
       const fallbackPanelDistance = 3; // meters
 
       function init() {
@@ -115,13 +114,12 @@
       }
 
       // Computes a position for the UI panel by intersecting a horizontal ray from the camera
-      // (in the forward direction) with the boundaries of the XRBoundedReferenceSpace.
-      // Returns a THREE.Vector3 (in world coordinates). If no intersection is found,
-      // returns a fallback position at a fixed distance in front of the camera.
+      // (in the forward direction) with the boundaries from a bounded reference space.
+      // If no valid bounded reference space is available, returns a fallback position.
       function computePanelPositionOnBoundary() {
-        // Get the XR reference space (hopefully a bounded reference space).
         const refSpace = renderer.xr.getReferenceSpace();
-        if (refSpace.boundsGeometry && refSpace.boundsGeometry.length > 0) {
+        // Check if the reference space is valid and has boundsGeometry.
+        if (refSpace && refSpace.boundsGeometry && refSpace.boundsGeometry.length > 0) {
           // Convert the bounds (an array of DOMPointReadOnly) to 2D points (Vector2) on the XZ plane.
           const points = refSpace.boundsGeometry.map((pt) => new THREE.Vector2(pt.x, pt.z));
           // Ensure the polygon is closed.
@@ -145,13 +143,7 @@
           for (let i = 0; i < points.length - 1; i++) {
             const p1 = points[i];
             const p2 = points[i + 1];
-            // Represent the segment vector.
             const s = p2.clone().sub(p1);
-            // Solve the 2D intersection:
-            // Let r = forward2D, o = camPos2D.
-            // We want t and u such that:
-            //   o + t * r = p1 + u * s
-            // This leads to two equations. The solution (if any) is:
             const denominator = forward2D.x * s.y - forward2D.y * s.x;
             if (denominator === 0) continue; // Parallel
             const diff = p1.clone().sub(camPos2D);
@@ -164,7 +156,7 @@
           }
 
           if (intersection2D) {
-            // Return the computed position; set y to a fixed value (e.g. 1.6 m).
+            // Return the computed position; set y to a fixed value (e.g., 1.6 m).
             return new THREE.Vector3(intersection2D.x, 1.6, intersection2D.y);
           }
         }
@@ -176,7 +168,7 @@
         return fallbackPos;
       }
 
-      // Creates an in‑world UI panel and places it on the wall (using the boundaries).
+      // Creates an in‑world UI panel and places it on the wall.
       function createUIPanel() {
         // Create a canvas element.
         const canvas = document.createElement("canvas");
@@ -208,7 +200,7 @@
         scene.add(uiMesh);
       }
 
-      // Update the UI panel (draw timer and score).
+      // Updates the UI panel with the timer and score.
       function updateUIPanel() {
         uiContext.clearRect(0, 0, uiCanvasWidth, uiCanvasHeight);
         uiContext.fillStyle = "rgba(0, 0, 0, 0.6)";
@@ -262,11 +254,11 @@
         score = 0;
         gameOver = false;
 
-        // Remove bullets.
+        // Remove any remaining bullets.
         bullets.forEach((bullet) => scene.remove(bullet));
         bullets = [];
 
-        // Remove targets and recreate them.
+        // Remove existing targets and recreate them.
         targets.forEach((target) => scene.remove(target));
         createTargets();
       }
