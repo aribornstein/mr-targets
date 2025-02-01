@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Mixed Reality FPS with Dynamic Targets</title>
+    <title>Mixed Reality FPS with Room-Based Dynamic Targets</title>
     <style>
       body {
         margin: 0;
@@ -57,7 +57,7 @@
         // Create ARButton.
         document.body.appendChild(
           ARButton.createButton(renderer, {
-            requiredFeatures: ["hit-test"],
+            requiredFeatures: ["hit-test", "bounded-floor"],
             optionalFeatures: ["dom-overlay"],
             domOverlay: { root: document.body }
           })
@@ -86,6 +86,7 @@
         window.addEventListener("resize", onWindowResize, false);
       }
 
+      // Creates the initial set of targets.
       function createTargets() {
         // Remove any existing targets.
         targets.forEach((target) => scene.remove(target));
@@ -97,26 +98,73 @@
         }
       }
 
-      // Spawns a single target at a random location.
+      // Spawns a single target at a random location based on the room boundaries.
       function spawnTarget() {
+        let spawnPos = new THREE.Vector3();
+        const refSpace = renderer.xr.getReferenceSpace();
+        if (refSpace && refSpace.boundsGeometry && refSpace.boundsGeometry.length > 0) {
+          // Convert bounds to 2D (XZ plane)
+          const polygon = refSpace.boundsGeometry.map((pt) => new THREE.Vector2(pt.x, pt.z));
+          // Ensure the polygon is closed.
+          if (!polygon[0].equals(polygon[polygon.length - 1])) {
+            polygon.push(polygon[0].clone());
+          }
+          // Compute the bounding box.
+          let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+          polygon.forEach((pt) => {
+            if (pt.x < minX) minX = pt.x;
+            if (pt.x > maxX) maxX = pt.x;
+            if (pt.y < minZ) minZ = pt.y;
+            if (pt.y > maxZ) maxZ = pt.y;
+          });
+
+          // Try up to 10 times to get a point inside the polygon.
+          let candidate;
+          let attempts = 0;
+          while (attempts < 10) {
+            const x = minX + Math.random() * (maxX - minX);
+            const z = minZ + Math.random() * (maxZ - minZ);
+            candidate = new THREE.Vector2(x, z);
+            if (isPointInPolygon(candidate, polygon)) break;
+            attempts++;
+          }
+          spawnPos.set(candidate.x, 1 + Math.random() * 0.5, candidate.y);
+        } else {
+          // Fallback: use default range.
+          spawnPos.set(
+            Math.random() * 2 - 1,           // x between -1 and 1
+            1 + Math.random() * 0.5,           // y roughly eye level
+            -2 - Math.random() * 2             // z between -2 and -4
+          );
+        }
+
+        // Create the target.
         const boxGeometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
         const targetMaterial = new THREE.MeshStandardMaterial({
           color: Math.random() * 0xffffff,
           transparent: true,
-          opacity: 1.0
+          opacity: 1.0,
         });
         const target = new THREE.Mesh(boxGeometry, targetMaterial);
-        // Position target randomly within defined ranges.
-        // You can adjust these ranges based on your play area.
-        target.position.set(
-          Math.random() * 2 - 1,          // x between -1 and 1
-          1 + Math.random() * 0.5,        // y roughly eye level
-          -2 - Math.random() * 2          // z between -2 and -4
-        );
+        target.position.copy(spawnPos);
         target.userData.exploding = false;
         target.userData.explodeTime = 0;
         scene.add(target);
         targets.push(target);
+      }
+
+      // Helper function to determine if a 2D point is inside a polygon.
+      // Uses the ray-casting algorithm.
+      function isPointInPolygon(point, polygon) {
+        let inside = false;
+        for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+          const xi = polygon[i].x, yi = polygon[i].y;
+          const xj = polygon[j].x, yj = polygon[j].y;
+          const intersect = ((yi > point.y) !== (yj > point.y)) &&
+            (point.x < ((xj - xi) * (point.y - yi)) / (yj - yi) + xi);
+          if (intersect) inside = !inside;
+        }
+        return inside;
       }
 
       // Computes a position for the UI panel by intersecting a horizontal ray from the camera
@@ -129,14 +177,12 @@
           if (!points[0].equals(points[points.length - 1])) {
             points.push(points[0].clone());
           }
-
           const camPos2D = new THREE.Vector2(camera.position.x, camera.position.z);
           const forward3D = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
           const forward2D = new THREE.Vector2(forward3D.x, forward3D.z).normalize();
 
           let closestT = Infinity;
           let intersection2D = null;
-
           for (let i = 0; i < points.length - 1; i++) {
             const p1 = points[i];
             const p2 = points[i + 1];
@@ -151,11 +197,11 @@
               intersection2D = camPos2D.clone().add(forward2D.clone().multiplyScalar(t));
             }
           }
-
           if (intersection2D) {
             return new THREE.Vector3(intersection2D.x, 1.6, intersection2D.y);
           }
         }
+        // Fallback: position the panel a fixed distance in front of the camera.
         const fallbackPos = new THREE.Vector3();
         camera.getWorldDirection(fallbackPos);
         fallbackPos.multiplyScalar(fallbackPanelDistance).add(camera.position);
@@ -176,7 +222,7 @@
         const uiMaterial = new THREE.MeshBasicMaterial({
           map: uiTexture,
           transparent: true,
-          side: THREE.DoubleSide
+          side: THREE.DoubleSide,
         });
 
         const uiGeometry = new THREE.PlaneGeometry(1, 0.5);
@@ -184,7 +230,6 @@
 
         const panelPos = computePanelPositionOnBoundary();
         uiMesh.position.copy(panelPos);
-
         uiMesh.lookAt(camera.position);
         scene.add(uiMesh);
       }
@@ -264,6 +309,7 @@
           }
         }
 
+        // Update bullet positions.
         for (let i = bullets.length - 1; i >= 0; i--) {
           const bullet = bullets[i];
           bullet.position.add(bullet.userData.velocity);
@@ -273,6 +319,7 @@
           }
         }
 
+        // Check for collisions between bullets and targets.
         for (let i = bullets.length - 1; i >= 0; i--) {
           const bullet = bullets[i];
           for (let j = targets.length - 1; j >= 0; j--) {
@@ -290,7 +337,7 @@
           }
         }
 
-        // Animate target explosions.
+        // Animate target explosions and spawn a new target when one finishes exploding.
         for (let i = targets.length - 1; i >= 0; i--) {
           const target = targets[i];
           if (target.userData.exploding) {
@@ -302,10 +349,9 @@
             target.rotation.x += delta * 2;
             target.rotation.y += delta * 2;
             if (progress >= 1) {
-              // Remove the destroyed target.
               scene.remove(target);
               targets.splice(i, 1);
-              // Spawn a new target in a random location.
+              // Spawn a new target based on the room boundaries.
               spawnTarget();
             }
           }
