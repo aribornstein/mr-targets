@@ -21,6 +21,9 @@
       let scene, camera, renderer;
       let controller;
       let bullets = []; // Track active bullets
+      let targets = []; // Track target objects for collision detection
+      const explosionDuration = 0.5; // seconds
+      const clock = new THREE.Clock(); // Used to track delta time
 
       function init() {
         // Create the scene. No background is set so the passthrough will be visible.
@@ -59,7 +62,6 @@
         // No virtual floor is added since the real-world floor is visible via passthrough.
 
         // Set up the controller if available.
-        // In AR sessions, controllers might not be present; you may add touch or gaze events as a fallback.
         controller = renderer.xr.getController(0);
         controller.addEventListener('select', onSelect);
         scene.add(controller);
@@ -68,7 +70,9 @@
         const boxGeometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
         for (let i = 0; i < 5; i++) {
           const targetMaterial = new THREE.MeshStandardMaterial({
-            color: Math.random() * 0xffffff
+            color: Math.random() * 0xffffff,
+            transparent: true, // Enable transparency so we can fade out
+            opacity: 1.0
           });
           const target = new THREE.Mesh(boxGeometry, targetMaterial);
           // Position targets randomly in front of the user.
@@ -77,7 +81,11 @@
             1 + Math.random() * 0.5,   // y: roughly eye level
             -2 - Math.random() * 2     // z: 2-4 meters in front
           );
+          // Initialize explosion state variables.
+          target.userData.exploding = false;
+          target.userData.explodeTime = 0;
           scene.add(target);
+          targets.push(target);
         }
 
         // Listen for window resizes.
@@ -113,9 +121,11 @@
         bullets.push(bullet);
       }
 
-      // Render loop: update bullet positions and render the scene.
+      // Render loop: update bullet positions, check collisions, update explosion animations, and render the scene.
       function render() {
-        // Update each bullet's position.
+        const delta = clock.getDelta();
+
+        // Update bullet positions.
         for (let i = bullets.length - 1; i >= 0; i--) {
           const bullet = bullets[i];
           bullet.position.add(bullet.userData.velocity);
@@ -124,6 +134,52 @@
           if (bullet.position.distanceTo(camera.position) > 20) {
             scene.remove(bullet);
             bullets.splice(i, 1);
+          }
+        }
+
+        // Check for collisions between bullets and targets.
+        // Using a simple sphere collision test: if the distance between the bullet and target
+        // is less than a threshold, consider it a hit.
+        for (let i = bullets.length - 1; i >= 0; i--) {
+          const bullet = bullets[i];
+          for (let j = targets.length - 1; j >= 0; j--) {
+            const target = targets[j];
+            // Only check targets that are not already exploding.
+            if (!target.userData.exploding) {
+              // Estimate radii: bullet ~0.02, target ~0.26 (half the box diagonal)
+              const distance = bullet.position.distanceTo(target.position);
+              if (distance < 0.28) { // 0.02 + 0.26 = 0.28
+                // Start explosion animation on the target.
+                target.userData.exploding = true;
+                target.userData.explodeTime = 0;
+                // Remove the bullet from the scene and array.
+                scene.remove(bullet);
+                bullets.splice(i, 1);
+                break; // Break out of the target loop once this bullet hits a target.
+              }
+            }
+          }
+        }
+
+        // Update explosion animations for targets.
+        for (let i = targets.length - 1; i >= 0; i--) {
+          const target = targets[i];
+          if (target.userData.exploding) {
+            target.userData.explodeTime += delta;
+            const progress = target.userData.explodeTime / explosionDuration;
+            // Scale up the target (simulate explosion)
+            const scaleFactor = 1 + progress * 1.5; // Adjust explosion intensity here.
+            target.scale.set(scaleFactor, scaleFactor, scaleFactor);
+            // Fade out the target.
+            target.material.opacity = 1 - progress;
+            // Optionally, you could add a rotation for extra effect.
+            target.rotation.x += delta * 2;
+            target.rotation.y += delta * 2;
+            // Once the explosion animation is complete, remove the target.
+            if (progress >= 1) {
+              scene.remove(target);
+              targets.splice(i, 1);
+            }
           }
         }
 
