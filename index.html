@@ -2,9 +2,8 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Mixed Reality FPS with In-World UI and Restart</title>
+    <title>Mixed Reality FPS with In-World UI (Timer and Score)</title>
     <style>
-      /* Remove default margin and hide scrollbars */
       body {
         margin: 0;
         overflow: hidden;
@@ -14,52 +13,47 @@
   <body>
     <!-- Use ES modules -->
     <script type="module">
-      // Import Three.js and ARButton as ES modules
       import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.module.js';
       import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.150.1/examples/jsm/webxr/ARButton.js';
 
       let scene, camera, renderer;
       let controllerLeft, controllerRight;
-      let bullets = []; // Track active bullets
-      let targets = []; // Track target objects for collision detection
-      const explosionDuration = 0.5; // seconds
-      const clock = new THREE.Clock(); // Used to track delta time
+      let bullets = [];
+      let targets = [];
+      const explosionDuration = 0.5;
+      const clock = new THREE.Clock();
 
-      // Game state variables.
-      let timeLeft = 60; // seconds
+      // Game state variables
+      let timeLeft = 60;
       let score = 0;
       let gameOver = false;
 
-      // --- UI Variables (3D Panels) ---
-      let uiMesh, uiContext, uiTexture;
-      let restartMesh, restartContext, restartTexture;
-      const uiWidth = 256, uiHeight = 128;       // size for the main UI canvas
-      const restartWidth = 256, restartHeight = 128; // size for the restart button canvas
-
-      // Raycaster for restart button interaction.
-      const raycaster = new THREE.Raycaster();
+      // --- In-World UI Panel ---
+      let uiMesh, uiTexture, uiContext;
+      const uiCanvasWidth = 512;
+      const uiCanvasHeight = 256;
 
       function init() {
-        // Create the scene.
+        // Set up scene
         scene = new THREE.Scene();
 
-        // Create a perspective camera.
+        // Set up camera
         camera = new THREE.PerspectiveCamera(
           70,
           window.innerWidth / window.innerHeight,
           0.01,
           1000
         );
-        camera.position.set(0, 1.6, 0); // approximate eye height
+        camera.position.set(0, 1.6, 0);
 
-        // Create the WebGL renderer with alpha (to allow passthrough).
+        // Set up renderer with XR enabled
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.xr.enabled = true;
         document.body.appendChild(renderer.domElement);
 
-        // Create the ARButton.
+        // AR Button
         document.body.appendChild(
           ARButton.createButton(renderer, {
             requiredFeatures: ['hit-test'],
@@ -68,12 +62,12 @@
           })
         );
 
-        // Add ambient lighting.
+        // Ambient light
         const hemiLight = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
         hemiLight.position.set(0.5, 1, 0.25);
         scene.add(hemiLight);
 
-        // Set up both controllers.
+        // Set up controllers (left and right)
         controllerLeft = renderer.xr.getController(0);
         controllerLeft.addEventListener('select', onSelect);
         scene.add(controllerLeft);
@@ -82,22 +76,79 @@
         controllerRight.addEventListener('select', onSelect);
         scene.add(controllerRight);
 
-        // Create initial targets.
+        // Create initial targets
         createTargets();
 
-        // Create the in-world UI panels.
-        createUIPanels();
+        // Create in‑world UI panel
+        createUIPanel();
 
-        // Listen for window resizes.
+        // Handle window resize
         window.addEventListener('resize', onWindowResize, false);
       }
 
-      // Create targets and add them to the scene.
-      function createTargets() {
-        // Remove any existing targets.
-        for (const target of targets) {
-          scene.remove(target);
+      function createUIPanel() {
+        // Create a canvas for UI
+        const canvas = document.createElement('canvas');
+        canvas.width = uiCanvasWidth;
+        canvas.height = uiCanvasHeight;
+        uiContext = canvas.getContext('2d');
+
+        // Create texture from canvas
+        uiTexture = new THREE.CanvasTexture(canvas);
+        uiTexture.encoding = THREE.sRGBEncoding;
+
+        // Create a material that renders on top (disable depthTest/depthWrite)
+        const uiMaterial = new THREE.MeshBasicMaterial({
+          map: uiTexture,
+          transparent: true,
+          depthTest: false,
+          depthWrite: false
+        });
+
+        // Create a plane geometry for the UI panel
+        const uiGeometry = new THREE.PlaneGeometry(0.8, 0.4); // world units
+        uiMesh = new THREE.Mesh(uiGeometry, uiMaterial);
+        uiMesh.renderOrder = 9999;
+
+        // Position the UI panel in front of the camera
+        // Adjust the position so it appears fixed in the user’s view.
+        uiMesh.position.set(0, 0.3, -1);
+
+        // Attach the UI panel to the camera so it moves with the user.
+        camera.add(uiMesh);
+      }
+
+      // Updates the in-world UI panel with the timer and score
+      function updateUIPanel() {
+        uiContext.clearRect(0, 0, uiCanvasWidth, uiCanvasHeight);
+
+        // Draw a translucent background
+        uiContext.fillStyle = "rgba(0, 0, 0, 0.6)";
+        uiContext.fillRect(0, 0, uiCanvasWidth, uiCanvasHeight);
+
+        // Set text style and draw timer and score
+        uiContext.font = "48px sans-serif";
+        uiContext.fillStyle = "white";
+        uiContext.textAlign = "left";
+        uiContext.fillText("Time: " + Math.floor(timeLeft) + " sec", 20, 80);
+        uiContext.fillText("Score: " + score, 20, 150);
+
+        // If game over, display a message
+        if (gameOver) {
+          uiContext.font = "64px sans-serif";
+          uiContext.fillStyle = "red";
+          uiContext.textAlign = "center";
+          uiContext.fillText("GAME OVER", uiCanvasWidth / 2, uiCanvasHeight / 2);
+          uiContext.font = "48px sans-serif";
+          uiContext.fillText("Tap any controller to Restart", uiCanvasWidth / 2, uiCanvasHeight / 2 + 60);
         }
+
+        uiTexture.needsUpdate = true;
+      }
+
+      function createTargets() {
+        // Remove existing targets (if any)
+        targets.forEach(target => scene.remove(target));
         targets = [];
 
         const boxGeometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
@@ -108,11 +159,10 @@
             opacity: 1.0
           });
           const target = new THREE.Mesh(boxGeometry, targetMaterial);
-          // Position targets randomly in front of the user.
           target.position.set(
-            Math.random() * 2 - 1,     // x: between -1 and 1 meters
-            1 + Math.random() * 0.5,   // y: roughly eye level
-            -2 - Math.random() * 2     // z: 2-4 meters in front
+            Math.random() * 2 - 1,
+            1 + Math.random() * 0.5,
+            -2 - Math.random() * 2
           );
           target.userData.exploding = false;
           target.userData.explodeTime = 0;
@@ -121,102 +171,51 @@
         }
       }
 
-      // Create in-world UI panels (score/timer and restart button) attached to the camera.
-      function createUIPanels() {
-        // Create main UI canvas (for timer and score).
-        const uiCanvas = document.createElement('canvas');
-        uiCanvas.width = uiWidth;
-        uiCanvas.height = uiHeight;
-        uiContext = uiCanvas.getContext('2d');
-        uiTexture = new THREE.CanvasTexture(uiCanvas);
-        const uiMaterial = new THREE.MeshBasicMaterial({ map: uiTexture, transparent: true });
-        const uiGeometry = new THREE.PlaneGeometry(0.5, 0.25); // adjust size in world units
-        uiMesh = new THREE.Mesh(uiGeometry, uiMaterial);
-        // Position the UI panel in front of the camera.
-        uiMesh.position.set(0, 0.2, -1);
-        // Make it a child of the camera so it moves with the user.
-        camera.add(uiMesh);
-
-        // Create restart button canvas.
-        const restartCanvas = document.createElement('canvas');
-        restartCanvas.width = restartWidth;
-        restartCanvas.height = restartHeight;
-        restartContext = restartCanvas.getContext('2d');
-        restartTexture = new THREE.CanvasTexture(restartCanvas);
-        const restartMaterial = new THREE.MeshBasicMaterial({ map: restartTexture, transparent: true });
-        const restartGeometry = new THREE.PlaneGeometry(0.5, 0.25);
-        restartMesh = new THREE.Mesh(restartGeometry, restartMaterial);
-        // Position the restart button below the main UI.
-        restartMesh.position.set(0, -0.3, -1);
-        // Initially hide the restart button.
-        restartMesh.visible = false;
-        camera.add(restartMesh);
-      }
-
-      // Update the UI canvases (score/timer and restart button) each frame.
-      function updateUI() {
-        // Update the main UI canvas.
-        uiContext.clearRect(0, 0, uiWidth, uiHeight);
-        uiContext.fillStyle = "rgba(0, 0, 0, 0.5)";
-        uiContext.fillRect(0, 0, uiWidth, uiHeight);
-        uiContext.font = "28px sans-serif";
-        uiContext.fillStyle = "white";
-        uiContext.fillText("Time: " + Math.floor(timeLeft) + " sec", 10, 40);
-        uiContext.fillText("Score: " + score, 10, 80);
-        uiTexture.needsUpdate = true;
-
-        // Update the restart button canvas only when game over.
-        if (gameOver) {
-          restartContext.clearRect(0, 0, restartWidth, restartHeight);
-          restartContext.fillStyle = "rgba(200, 0, 0, 0.8)";
-          restartContext.fillRect(0, 0, restartWidth, restartHeight);
-          restartContext.font = "28px sans-serif";
-          restartContext.fillStyle = "white";
-          restartContext.textAlign = "center";
-          restartContext.fillText("Restart", restartWidth / 2, restartHeight / 2 + 10);
-          restartTexture.needsUpdate = true;
-          restartMesh.visible = true;
-        } else {
-          restartMesh.visible = false;
-        }
-      }
-
-      // Event handler: called when a "select" event occurs on either controller.
+      // Called when a controller "select" event occurs.
       function onSelect(event) {
-        const controller = event.target;
-
-        // If game over, check if the restart button was selected.
+        // If game over, restart the game on any controller select
         if (gameOver) {
-          // Set up the raycaster from the controller.
-          const tempMatrix = new THREE.Matrix4();
-          tempMatrix.identity().extractRotation(controller.matrixWorld);
-          const origin = new THREE.Vector3();
-          controller.getWorldPosition(origin);
-          const direction = new THREE.Vector3(0, 0, -1).applyMatrix4(tempMatrix);
-          raycaster.set(origin, direction);
-          const intersects = raycaster.intersectObject(restartMesh);
-          if (intersects.length > 0) {
-            resetGame();
-          }
+          resetGame();
           return;
         }
 
-        // Otherwise, shoot a bullet.
+        const controller = event.target;
+        // Create bullet geometry and material
         const bulletGeometry = new THREE.SphereGeometry(0.02, 16, 16);
         const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
         const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
         bullet.position.copy(controller.position);
         scene.add(bullet);
 
-        // Determine forward direction.
+        // Determine forward direction from controller orientation
         const speed = 0.1;
-        const directionVec = new THREE.Vector3(0, 0, -1);
-        directionVec.applyQuaternion(controller.quaternion);
-        bullet.userData.velocity = directionVec.multiplyScalar(speed);
+        const direction = new THREE.Vector3(0, 0, -1).applyQuaternion(controller.quaternion);
+        bullet.userData.velocity = direction.multiplyScalar(speed);
+
         bullets.push(bullet);
       }
 
-      // Render loop: update bullets, collisions, explosion animations, timer, UI, and render the scene.
+      function resetGame() {
+        // Reset game variables
+        timeLeft = 60;
+        score = 0;
+        gameOver = false;
+
+        // Remove remaining bullets
+        bullets.forEach(bullet => scene.remove(bullet));
+        bullets = [];
+
+        // Remove remaining targets and recreate them
+        targets.forEach(target => scene.remove(target));
+        createTargets();
+      }
+
+      function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      }
+
       function render() {
         const delta = clock.getDelta();
 
@@ -225,11 +224,10 @@
           if (timeLeft <= 0) {
             timeLeft = 0;
             gameOver = true;
-            console.log("Game Over!");
           }
         }
 
-        // Update bullet positions.
+        // Update bullet positions and remove far-away bullets.
         for (let i = bullets.length - 1; i >= 0; i--) {
           const bullet = bullets[i];
           bullet.position.add(bullet.userData.velocity);
@@ -239,14 +237,13 @@
           }
         }
 
-        // Check for collisions between bullets and targets.
+        // Check collisions between bullets and targets.
         for (let i = bullets.length - 1; i >= 0; i--) {
           const bullet = bullets[i];
           for (let j = targets.length - 1; j >= 0; j--) {
             const target = targets[j];
             if (!target.userData.exploding) {
-              const distance = bullet.position.distanceTo(target.position);
-              if (distance < 0.28) {
+              if (bullet.position.distanceTo(target.position) < 0.28) {
                 target.userData.exploding = true;
                 target.userData.explodeTime = 0;
                 score++;
@@ -258,7 +255,7 @@
           }
         }
 
-        // Update explosion animations for targets.
+        // Handle explosion animations for targets.
         for (let i = targets.length - 1; i >= 0; i--) {
           const target = targets[i];
           if (target.userData.exploding) {
@@ -276,37 +273,9 @@
           }
         }
 
-        // Update the in-world UI panels.
-        updateUI();
+        updateUIPanel();
 
         renderer.render(scene, camera);
-      }
-
-      // Reset game state for a new session.
-      function resetGame() {
-        gameOver = false;
-        timeLeft = 60;
-        score = 0;
-
-        // Remove remaining bullets.
-        for (const bullet of bullets) {
-          scene.remove(bullet);
-        }
-        bullets = [];
-
-        // Remove remaining targets.
-        for (const target of targets) {
-          scene.remove(target);
-        }
-        targets = [];
-        createTargets();
-      }
-
-      // Adjust the scene when the window is resized.
-      function onWindowResize() {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
       }
 
       init();
