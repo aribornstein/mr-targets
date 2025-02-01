@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Mixed Reality FPS with UI on Physical Wall</title>
+    <title>Mixed Reality FPS with Dynamic Targets</title>
     <style>
       body {
         margin: 0;
@@ -32,7 +32,6 @@
       let uiMesh, uiTexture, uiContext;
       const uiCanvasWidth = 512;
       const uiCanvasHeight = 256;
-      // Fallback panel distance if no bounded reference space is available.
       const fallbackPanelDistance = 3; // meters
 
       function init() {
@@ -88,64 +87,62 @@
       }
 
       function createTargets() {
-        // Remove existing targets.
+        // Remove any existing targets.
         targets.forEach((target) => scene.remove(target));
         targets = [];
 
-        const boxGeometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+        // For a starting set, create 5 targets.
         for (let i = 0; i < 5; i++) {
-          const targetMaterial = new THREE.MeshStandardMaterial({
-            color: Math.random() * 0xffffff,
-            transparent: true,
-            opacity: 1.0,
-          });
-          const target = new THREE.Mesh(boxGeometry, targetMaterial);
-          // Position targets randomly in front of the user.
-          target.position.set(
-            Math.random() * 2 - 1,       // x: between -1 and 1 meters
-            1 + Math.random() * 0.5,     // y: roughly eye level
-            -2 - Math.random() * 2       // z: 2-4 meters in front
-          );
-          target.userData.exploding = false;
-          target.userData.explodeTime = 0;
-          scene.add(target);
-          targets.push(target);
+          spawnTarget();
         }
       }
 
+      // Spawns a single target at a random location.
+      function spawnTarget() {
+        const boxGeometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+        const targetMaterial = new THREE.MeshStandardMaterial({
+          color: Math.random() * 0xffffff,
+          transparent: true,
+          opacity: 1.0
+        });
+        const target = new THREE.Mesh(boxGeometry, targetMaterial);
+        // Position target randomly within defined ranges.
+        // You can adjust these ranges based on your play area.
+        target.position.set(
+          Math.random() * 2 - 1,          // x between -1 and 1
+          1 + Math.random() * 0.5,        // y roughly eye level
+          -2 - Math.random() * 2          // z between -2 and -4
+        );
+        target.userData.exploding = false;
+        target.userData.explodeTime = 0;
+        scene.add(target);
+        targets.push(target);
+      }
+
       // Computes a position for the UI panel by intersecting a horizontal ray from the camera
-      // (in the forward direction) with the boundaries from a bounded reference space.
-      // If no valid bounded reference space is available, returns a fallback position.
+      // with the boundaries from a bounded reference space.
+      // Returns a THREE.Vector3 (in world coordinates). If no intersection is found, returns a fallback position.
       function computePanelPositionOnBoundary() {
         const refSpace = renderer.xr.getReferenceSpace();
-        // Check if the reference space is valid and has boundsGeometry.
         if (refSpace && refSpace.boundsGeometry && refSpace.boundsGeometry.length > 0) {
-          // Convert the bounds (an array of DOMPointReadOnly) to 2D points (Vector2) on the XZ plane.
           const points = refSpace.boundsGeometry.map((pt) => new THREE.Vector2(pt.x, pt.z));
-          // Ensure the polygon is closed.
           if (!points[0].equals(points[points.length - 1])) {
             points.push(points[0].clone());
           }
 
-          // Get the camera’s position in the same coordinate space.
           const camPos2D = new THREE.Vector2(camera.position.x, camera.position.z);
-
-          // Compute the camera's forward direction in the horizontal (XZ) plane.
           const forward3D = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
           const forward2D = new THREE.Vector2(forward3D.x, forward3D.z).normalize();
 
           let closestT = Infinity;
           let intersection2D = null;
 
-          // For each edge in the bounds polygon, compute intersection with the ray:
-          // Ray: R(t) = camPos2D + t * forward2D, t >= 0.
-          // Segment: S(u) = p_i + u*(p_i+1 - p_i), u in [0,1].
           for (let i = 0; i < points.length - 1; i++) {
             const p1 = points[i];
             const p2 = points[i + 1];
             const s = p2.clone().sub(p1);
             const denominator = forward2D.x * s.y - forward2D.y * s.x;
-            if (denominator === 0) continue; // Parallel
+            if (denominator === 0) continue;
             const diff = p1.clone().sub(camPos2D);
             const t = (diff.x * s.y - diff.y * s.x) / denominator;
             const u = (diff.x * forward2D.y - diff.y * forward2D.x) / denominator;
@@ -156,11 +153,9 @@
           }
 
           if (intersection2D) {
-            // Return the computed position; set y to a fixed value (e.g., 1.6 m).
             return new THREE.Vector3(intersection2D.x, 1.6, intersection2D.y);
           }
         }
-        // Fallback: position the panel a fixed distance in front of the camera.
         const fallbackPos = new THREE.Vector3();
         camera.getWorldDirection(fallbackPos);
         fallbackPos.multiplyScalar(fallbackPanelDistance).add(camera.position);
@@ -170,32 +165,26 @@
 
       // Creates an in‑world UI panel and places it on the wall.
       function createUIPanel() {
-        // Create a canvas element.
         const canvas = document.createElement("canvas");
         canvas.width = uiCanvasWidth;
         canvas.height = uiCanvasHeight;
         uiContext = canvas.getContext("2d");
 
-        // Create a texture from the canvas.
         uiTexture = new THREE.CanvasTexture(canvas);
         uiTexture.encoding = THREE.sRGBEncoding;
 
-        // Create a material for the UI panel.
         const uiMaterial = new THREE.MeshBasicMaterial({
           map: uiTexture,
           transparent: true,
-          side: THREE.DoubleSide,
+          side: THREE.DoubleSide
         });
 
-        // Create a plane geometry for the UI panel.
-        const uiGeometry = new THREE.PlaneGeometry(1, 0.5); // adjust size (world units) as desired
+        const uiGeometry = new THREE.PlaneGeometry(1, 0.5);
         uiMesh = new THREE.Mesh(uiGeometry, uiMaterial);
 
-        // Compute the panel position based on the boundaries.
         const panelPos = computePanelPositionOnBoundary();
         uiMesh.position.copy(panelPos);
 
-        // Rotate the panel so that it faces the camera.
         uiMesh.lookAt(camera.position);
         scene.add(uiMesh);
       }
@@ -229,20 +218,17 @@
 
       // Called when a controller "select" event occurs.
       function onSelect(event) {
-        // If game over, restart.
         if (gameOver) {
           resetGame();
           return;
         }
         const controller = event.target;
-        // Create a bullet.
         const bulletGeometry = new THREE.SphereGeometry(0.02, 16, 16);
         const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
         const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
         bullet.position.copy(controller.position);
         scene.add(bullet);
 
-        // Determine forward direction.
         const speed = 0.1;
         const direction = new THREE.Vector3(0, 0, -1).applyQuaternion(controller.quaternion);
         bullet.userData.velocity = direction.multiplyScalar(speed);
@@ -254,12 +240,11 @@
         score = 0;
         gameOver = false;
 
-        // Remove any remaining bullets.
         bullets.forEach((bullet) => scene.remove(bullet));
         bullets = [];
 
-        // Remove existing targets and recreate them.
         targets.forEach((target) => scene.remove(target));
+        targets = [];
         createTargets();
       }
 
@@ -279,7 +264,6 @@
           }
         }
 
-        // Update bullet positions.
         for (let i = bullets.length - 1; i >= 0; i--) {
           const bullet = bullets[i];
           bullet.position.add(bullet.userData.velocity);
@@ -289,7 +273,6 @@
           }
         }
 
-        // Check collisions between bullets and targets.
         for (let i = bullets.length - 1; i >= 0; i--) {
           const bullet = bullets[i];
           for (let j = targets.length - 1; j >= 0; j--) {
@@ -319,8 +302,11 @@
             target.rotation.x += delta * 2;
             target.rotation.y += delta * 2;
             if (progress >= 1) {
+              // Remove the destroyed target.
               scene.remove(target);
               targets.splice(i, 1);
+              // Spawn a new target in a random location.
+              spawnTarget();
             }
           }
         }
