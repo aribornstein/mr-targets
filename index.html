@@ -2,16 +2,49 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Mixed Reality FPS with Passthrough (No Virtual Floor)</title>
+    <title>Mixed Reality FPS with Timer, Points, and Restart</title>
     <style>
       /* Remove default margin and hide scrollbars */
       body {
         margin: 0;
         overflow: hidden;
       }
+      /* UI styling */
+      #ui {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        color: white;
+        font-size: 24px;
+        z-index: 999;
+        font-family: sans-serif;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 10px;
+        border-radius: 5px;
+      }
+      /* Restart button styling */
+      #restartButton {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 28px;
+        padding: 10px 20px;
+        z-index: 1000;
+        display: none;
+        cursor: pointer;
+      }
     </style>
   </head>
   <body>
+    <!-- UI for Timer and Score -->
+    <div id="ui">
+      Time: <span id="timer">60</span> sec<br />
+      Score: <span id="score">0</span>
+    </div>
+    <!-- Restart Button -->
+    <button id="restartButton">Restart Game</button>
+
     <!-- Use ES modules -->
     <script type="module">
       // Import Three.js and ARButton as ES modules
@@ -24,6 +57,17 @@
       let targets = []; // Track target objects for collision detection
       const explosionDuration = 0.5; // seconds
       const clock = new THREE.Clock(); // Used to track delta time
+
+      // Timer and score variables.
+      let timeLeft = 60; // seconds
+      let score = 0;
+      let gameOver = false;
+      const timerEl = document.getElementById('timer');
+      const scoreEl = document.getElementById('score');
+      const restartButton = document.getElementById('restartButton');
+
+      // Setup event listener for restart button.
+      restartButton.addEventListener('click', resetGame);
 
       function init() {
         // Create the scene. No background is set so the passthrough will be visible.
@@ -59,8 +103,6 @@
         hemiLight.position.set(0.5, 1, 0.25);
         scene.add(hemiLight);
 
-        // No virtual floor is added since the real-world floor is visible via passthrough.
-
         // Set up both left and right controllers.
         controllerLeft = renderer.xr.getController(0);
         controllerLeft.addEventListener('select', onSelect);
@@ -70,12 +112,26 @@
         controllerRight.addEventListener('select', onSelect);
         scene.add(controllerRight);
 
-        // Create some sample target objects (floating boxes) as placeholders.
+        // Create initial targets.
+        createTargets();
+
+        // Listen for window resizes.
+        window.addEventListener('resize', onWindowResize, false);
+      }
+
+      // Creates target objects and adds them to the scene and targets array.
+      function createTargets() {
+        // Clear any existing targets.
+        for (const target of targets) {
+          scene.remove(target);
+        }
+        targets = [];
+
         const boxGeometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
         for (let i = 0; i < 5; i++) {
           const targetMaterial = new THREE.MeshStandardMaterial({
             color: Math.random() * 0xffffff,
-            transparent: true, // Enable transparency so we can fade out
+            transparent: true,
             opacity: 1.0
           });
           const target = new THREE.Mesh(boxGeometry, targetMaterial);
@@ -91,14 +147,13 @@
           scene.add(target);
           targets.push(target);
         }
-
-        // Listen for window resizes.
-        window.addEventListener('resize', onWindowResize, false);
       }
 
       // Event handler: called when a "select" event occurs on either controller.
       function onSelect(event) {
-        // 'this' or event.target refers to the controller that triggered the event.
+        if (gameOver) return; // Prevent shooting when game is over.
+
+        // 'event.target' is the controller that triggered the event.
         const controller = event.target;
 
         // Create a small sphere to represent a bullet.
@@ -120,9 +175,22 @@
         bullets.push(bullet);
       }
 
-      // Render loop: update bullet positions, check collisions, update explosion animations, and render the scene.
+      // Render loop: update bullet positions, check collisions, update explosion animations, timer, and render the scene.
       function render() {
         const delta = clock.getDelta();
+
+        // Update timer if the game is not over.
+        if (!gameOver) {
+          timeLeft -= delta;
+          if (timeLeft <= 0) {
+            timeLeft = 0;
+            gameOver = true;
+            // Show the restart button when game over.
+            restartButton.style.display = "block";
+            console.log("Game Over!");
+          }
+          timerEl.textContent = Math.floor(timeLeft);
+        }
 
         // Update bullet positions.
         for (let i = bullets.length - 1; i >= 0; i--) {
@@ -149,10 +217,13 @@
                 // Start explosion animation on the target.
                 target.userData.exploding = true;
                 target.userData.explodeTime = 0;
+                // Increase score when a target is hit.
+                score++;
+                scoreEl.textContent = score;
                 // Remove the bullet from the scene and array.
                 scene.remove(bullet);
                 bullets.splice(i, 1);
-                break; // Break out of the target loop once this bullet hits a target.
+                break; // Exit target loop on hit.
               }
             }
           }
@@ -181,6 +252,34 @@
         }
 
         renderer.render(scene, camera);
+      }
+
+      // Resets the game state to allow a new game session.
+      function resetGame() {
+        // Hide the restart button.
+        restartButton.style.display = "none";
+
+        // Reset game variables.
+        timeLeft = 60;
+        score = 0;
+        gameOver = false;
+        timerEl.textContent = timeLeft;
+        scoreEl.textContent = score;
+
+        // Remove any remaining bullets.
+        for (const bullet of bullets) {
+          scene.remove(bullet);
+        }
+        bullets = [];
+
+        // Remove any remaining targets.
+        for (const target of targets) {
+          scene.remove(target);
+        }
+        targets = [];
+
+        // Recreate targets.
+        createTargets();
       }
 
       // Adjust the scene when the window is resized.
