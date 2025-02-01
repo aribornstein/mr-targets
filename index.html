@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Mixed Reality FPS with Passthrough on Quest 3</title>
+    <title>Mixed Reality FPS with Passthrough (No Virtual Floor)</title>
     <style>
       /* Remove default margin and hide scrollbars */
       body {
@@ -23,24 +23,26 @@
       let bullets = []; // Track active bullets
 
       function init() {
-        // Create the scene.
+        // Create the scene. No background is set so the passthrough will be visible.
         scene = new THREE.Scene();
-        // Do not set an explicit background—the passthrough camera feed will serve as the background.
 
-        // Create a perspective camera. (For AR, near/far values are important.)
-        camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 1000);
-        camera.position.set(0, 1.6, 0); // approximate human eye height
+        // Create a perspective camera. For AR, set near/far values appropriately.
+        camera = new THREE.PerspectiveCamera(
+          70,
+          window.innerWidth / window.innerHeight,
+          0.01,
+          1000
+        );
+        camera.position.set(0, 1.6, 0); // Approximate human eye height
 
-        // Create the WebGL renderer with alpha so that the AR session can show the passthrough.
+        // Create the WebGL renderer with alpha so the passthrough is visible.
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.xr.enabled = true;
         document.body.appendChild(renderer.domElement);
 
-        // Create the ARButton. This button will request an immersive-ar session.
-        // You can optionally pass sessionInit options. Here we include hit-test support
-        // and enable a DOM overlay (which can be useful for UI).
+        // Create the ARButton to request an immersive-ar session.
         document.body.appendChild(
           ARButton.createButton(renderer, {
             requiredFeatures: ['hit-test'],
@@ -54,27 +56,15 @@
         hemiLight.position.set(0.5, 1, 0.25);
         scene.add(hemiLight);
 
-        // Add a virtual floor. In AR mode the real-world floor is visible via passthrough,
-        // so this is only for virtual content reference.
-        const floorGeometry = new THREE.PlaneGeometry(10, 10);
-        const floorMaterial = new THREE.MeshStandardMaterial({
-          color: 0x808080,
-          opacity: 0.5,
-          transparent: true
-        });
-        const floor = new THREE.Mesh(floorGeometry, floorMaterial);
-        floor.rotation.x = -Math.PI / 2;
-        floor.position.y = 0;
-        scene.add(floor);
+        // No virtual floor is added since the real-world floor is visible via passthrough.
 
         // Set up the controller if available.
-        // In AR sessions, controllers might not be present;
-        // you may wish to fall back to touch or gaze events if needed.
+        // In AR sessions, controllers might not be present; you may add touch or gaze events as a fallback.
         controller = renderer.xr.getController(0);
         controller.addEventListener('select', onSelect);
         scene.add(controller);
 
-        // Create some sample target objects (floating boxes) that the user can shoot at.
+        // Create some sample target objects (floating boxes) as placeholders.
         const boxGeometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
         for (let i = 0; i < 5; i++) {
           const targetMaterial = new THREE.MeshStandardMaterial({
@@ -83,9 +73,9 @@
           const target = new THREE.Mesh(boxGeometry, targetMaterial);
           // Position targets randomly in front of the user.
           target.position.set(
-            Math.random() * 2 - 1,   // x: between -1 and 1 meters
-            1 + Math.random() * 0.5, // y: around eye level
-            -2 - Math.random() * 2   // z: 2-4 meters in front
+            Math.random() * 2 - 1,     // x: between -1 and 1 meters
+            1 + Math.random() * 0.5,   // y: roughly eye level
+            -2 - Math.random() * 2     // z: 2-4 meters in front
           );
           scene.add(target);
         }
@@ -94,15 +84,14 @@
         window.addEventListener('resize', onWindowResize, false);
       }
 
-      // Event handler when the controller “selects” (e.g. button pressed or tap detected).
+      // Event handler: called when a "select" event occurs (e.g., a controller tap or button press).
       function onSelect() {
         // Create a small sphere to represent a bullet.
         const bulletGeometry = new THREE.SphereGeometry(0.02, 16, 16);
         const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
         const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
 
-        // Position the bullet at the controller's position if available,
-        // or fallback to the camera's position.
+        // Position the bullet at the controller's position if available, or the camera's position.
         if (controller && controller.position) {
           bullet.position.copy(controller.position);
         } else {
@@ -110,8 +99,7 @@
         }
         scene.add(bullet);
 
-        // Determine the forward direction.
-        // Use the controller’s quaternion if available; otherwise use the camera’s.
+        // Determine the forward direction: use the controller’s quaternion if available; otherwise use the camera’s.
         const speed = 0.1;
         const direction = new THREE.Vector3(0, 0, -1);
         if (controller && controller.quaternion) {
@@ -121,7 +109,7 @@
         }
         bullet.userData.velocity = direction.multiplyScalar(speed);
 
-        // Keep track of the bullet for updates.
+        // Add the bullet to our array so it can be updated each frame.
         bullets.push(bullet);
       }
 
