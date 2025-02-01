@@ -4,7 +4,6 @@
     <meta charset="UTF-8" />
     <title>Mixed Reality FPS for Quest 3</title>
     <style>
-      /* Remove default margin and hide scrollbars */
       body {
         margin: 0;
         overflow: hidden;
@@ -12,15 +11,13 @@
     </style>
   </head>
   <body>
-    <!-- Include Three.js from a CDN -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r150/three.min.js"></script>
-    <!-- VRButton.js makes it easy to add a button to enter VR/WebXR mode -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/jsm/webxr/VRButton.js"></script>
+    <script type="module">
+      import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.module.js';
+      import { VRButton } from 'https://cdn.jsdelivr.net/npm/three@0.150.1/examples/jsm/webxr/VRButton.js';
 
-    <script>
       let scene, camera, renderer;
       let controller;
-      let bullets = []; // to track bullets in the scene
+      let bullets = []; // To track bullets in the scene
 
       // Initialize the scene, camera, and renderer
       function init() {
@@ -28,7 +25,7 @@
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0x505050);
 
-        // Create a perspective camera (set the initial height to ~1.6 for human eye level)
+        // Create a perspective camera (eye level is around 1.6 meters)
         camera = new THREE.PerspectiveCamera(
           70,
           window.innerWidth / window.innerHeight,
@@ -47,7 +44,7 @@
         // Add the VRButton to enter WebXR mode on compatible devices (like Quest 3)
         document.body.appendChild(VRButton.createButton(renderer));
 
-        // Add basic lighting
+        // Basic lighting
         const hemiLight = new THREE.HemisphereLight(0x606060, 0x404040);
         scene.add(hemiLight);
         const directionalLight = new THREE.DirectionalLight(0xffffff);
@@ -62,7 +59,7 @@
         floor.position.y = 0;
         scene.add(floor);
 
-        // Set up the controller (this example uses the first available controller)
+        // Set up the controller (using the first available controller)
         controller = renderer.xr.getController(0);
         controller.addEventListener('select', onSelect);
         scene.add(controller);
@@ -82,7 +79,7 @@
           scene.add(target);
         }
 
-        // Listen for window resizes
+        // Handle window resize
         window.addEventListener('resize', onWindowResize, false);
       }
 
@@ -123,7 +120,6 @@
           }
         }
 
-        // Render the scene through the camera
         renderer.render(scene, camera);
       }
 
@@ -134,9 +130,8 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
       }
 
-      // Start the application
+      // Initialize and start the XR animation loop
       init();
-      // Use the XR animation loop to render frames
       renderer.setAnimationLoop(render);
     </script>
   </body>
