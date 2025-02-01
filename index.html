@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Mixed Reality FPS with In-World UI (Timer and Score)</title>
+    <title>Mixed Reality FPS with UI on Physical Wall</title>
     <style>
       body {
         margin: 0;
@@ -13,8 +13,8 @@
   <body>
     <!-- Use ES modules -->
     <script type="module">
-      import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.module.js';
-      import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.150.1/examples/jsm/webxr/ARButton.js';
+      import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.module.js";
+      import { ARButton } from "https://cdn.jsdelivr.net/npm/three@0.150.1/examples/jsm/webxr/ARButton.js";
 
       let scene, camera, renderer;
       let controllerLeft, controllerRight;
@@ -28,16 +28,19 @@
       let score = 0;
       let gameOver = false;
 
-      // --- In-World UI Panel ---
+      // --- In-World UI Panel Variables ---
       let uiMesh, uiTexture, uiContext;
       const uiCanvasWidth = 512;
       const uiCanvasHeight = 256;
 
+      // How far to fallback if no boundary intersection is found.
+      const fallbackPanelDistance = 3; // meters
+
       function init() {
-        // Set up scene
+        // Create the scene.
         scene = new THREE.Scene();
 
-        // Set up camera
+        // Create a perspective camera.
         camera = new THREE.PerspectiveCamera(
           70,
           window.innerWidth / window.innerHeight,
@@ -46,109 +49,48 @@
         );
         camera.position.set(0, 1.6, 0);
 
-        // Set up renderer with XR enabled
+        // Create the renderer with alpha (so passthrough shows through).
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.xr.enabled = true;
         document.body.appendChild(renderer.domElement);
 
-        // AR Button
+        // Create ARButton.
         document.body.appendChild(
           ARButton.createButton(renderer, {
-            requiredFeatures: ['hit-test'],
-            optionalFeatures: ['dom-overlay'],
+            requiredFeatures: ["hit-test"],
+            optionalFeatures: ["dom-overlay"],
             domOverlay: { root: document.body }
           })
         );
 
-        // Ambient light
+        // Add ambient lighting.
         const hemiLight = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
         hemiLight.position.set(0.5, 1, 0.25);
         scene.add(hemiLight);
 
-        // Set up controllers (left and right)
+        // Set up controllers.
         controllerLeft = renderer.xr.getController(0);
-        controllerLeft.addEventListener('select', onSelect);
+        controllerLeft.addEventListener("select", onSelect);
         scene.add(controllerLeft);
 
         controllerRight = renderer.xr.getController(1);
-        controllerRight.addEventListener('select', onSelect);
+        controllerRight.addEventListener("select", onSelect);
         scene.add(controllerRight);
 
-        // Create initial targets
+        // Create initial targets.
         createTargets();
 
-        // Create in‑world UI panel
+        // Create the in‑world UI panel.
         createUIPanel();
 
-        // Handle window resize
-        window.addEventListener('resize', onWindowResize, false);
-      }
-
-      function createUIPanel() {
-        // Create a canvas for UI
-        const canvas = document.createElement('canvas');
-        canvas.width = uiCanvasWidth;
-        canvas.height = uiCanvasHeight;
-        uiContext = canvas.getContext('2d');
-
-        // Create texture from canvas
-        uiTexture = new THREE.CanvasTexture(canvas);
-        uiTexture.encoding = THREE.sRGBEncoding;
-
-        // Create a material that renders on top (disable depthTest/depthWrite)
-        const uiMaterial = new THREE.MeshBasicMaterial({
-          map: uiTexture,
-          transparent: true,
-          depthTest: false,
-          depthWrite: false
-        });
-
-        // Create a plane geometry for the UI panel
-        const uiGeometry = new THREE.PlaneGeometry(0.8, 0.4); // world units
-        uiMesh = new THREE.Mesh(uiGeometry, uiMaterial);
-        uiMesh.renderOrder = 9999;
-
-        // Position the UI panel in front of the camera
-        // Adjust the position so it appears fixed in the user’s view.
-        uiMesh.position.set(0, 0.3, -1);
-
-        // Attach the UI panel to the camera so it moves with the user.
-        camera.add(uiMesh);
-      }
-
-      // Updates the in-world UI panel with the timer and score
-      function updateUIPanel() {
-        uiContext.clearRect(0, 0, uiCanvasWidth, uiCanvasHeight);
-
-        // Draw a translucent background
-        uiContext.fillStyle = "rgba(0, 0, 0, 0.6)";
-        uiContext.fillRect(0, 0, uiCanvasWidth, uiCanvasHeight);
-
-        // Set text style and draw timer and score
-        uiContext.font = "48px sans-serif";
-        uiContext.fillStyle = "white";
-        uiContext.textAlign = "left";
-        uiContext.fillText("Time: " + Math.floor(timeLeft) + " sec", 20, 80);
-        uiContext.fillText("Score: " + score, 20, 150);
-
-        // If game over, display a message
-        if (gameOver) {
-          uiContext.font = "64px sans-serif";
-          uiContext.fillStyle = "red";
-          uiContext.textAlign = "center";
-          uiContext.fillText("GAME OVER", uiCanvasWidth / 2, uiCanvasHeight / 2);
-          uiContext.font = "48px sans-serif";
-          uiContext.fillText("Tap any controller to Restart", uiCanvasWidth / 2, uiCanvasHeight / 2 + 60);
-        }
-
-        uiTexture.needsUpdate = true;
+        window.addEventListener("resize", onWindowResize, false);
       }
 
       function createTargets() {
-        // Remove existing targets (if any)
-        targets.forEach(target => scene.remove(target));
+        // Remove existing targets.
+        targets.forEach((target) => scene.remove(target));
         targets = [];
 
         const boxGeometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
@@ -156,13 +98,14 @@
           const targetMaterial = new THREE.MeshStandardMaterial({
             color: Math.random() * 0xffffff,
             transparent: true,
-            opacity: 1.0
+            opacity: 1.0,
           });
           const target = new THREE.Mesh(boxGeometry, targetMaterial);
+          // Position targets randomly in front of the user.
           target.position.set(
-            Math.random() * 2 - 1,
-            1 + Math.random() * 0.5,
-            -2 - Math.random() * 2
+            Math.random() * 2 - 1,       // x: between -1 and 1 meters
+            1 + Math.random() * 0.5,     // y: roughly eye level
+            -2 - Math.random() * 2       // z: 2-4 meters in front
           );
           target.userData.exploding = false;
           target.userData.explodeTime = 0;
@@ -171,42 +114,160 @@
         }
       }
 
+      // Computes a position for the UI panel by intersecting a horizontal ray from the camera
+      // (in the forward direction) with the boundaries of the XRBoundedReferenceSpace.
+      // Returns a THREE.Vector3 (in world coordinates). If no intersection is found,
+      // returns a fallback position at a fixed distance in front of the camera.
+      function computePanelPositionOnBoundary() {
+        // Get the XR reference space (hopefully a bounded reference space).
+        const refSpace = renderer.xr.getReferenceSpace();
+        if (refSpace.boundsGeometry && refSpace.boundsGeometry.length > 0) {
+          // Convert the bounds (an array of DOMPointReadOnly) to 2D points (Vector2) on the XZ plane.
+          const points = refSpace.boundsGeometry.map((pt) => new THREE.Vector2(pt.x, pt.z));
+          // Ensure the polygon is closed.
+          if (!points[0].equals(points[points.length - 1])) {
+            points.push(points[0].clone());
+          }
+
+          // Get the camera’s position in the same coordinate space.
+          const camPos2D = new THREE.Vector2(camera.position.x, camera.position.z);
+
+          // Compute the camera's forward direction in the horizontal (XZ) plane.
+          const forward3D = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+          const forward2D = new THREE.Vector2(forward3D.x, forward3D.z).normalize();
+
+          let closestT = Infinity;
+          let intersection2D = null;
+
+          // For each edge in the bounds polygon, compute intersection with the ray:
+          // Ray: R(t) = camPos2D + t * forward2D, t >= 0.
+          // Segment: S(u) = p_i + u*(p_i+1 - p_i), u in [0,1].
+          for (let i = 0; i < points.length - 1; i++) {
+            const p1 = points[i];
+            const p2 = points[i + 1];
+            // Represent the segment vector.
+            const s = p2.clone().sub(p1);
+            // Solve the 2D intersection:
+            // Let r = forward2D, o = camPos2D.
+            // We want t and u such that:
+            //   o + t * r = p1 + u * s
+            // This leads to two equations. The solution (if any) is:
+            const denominator = forward2D.x * s.y - forward2D.y * s.x;
+            if (denominator === 0) continue; // Parallel
+            const diff = p1.clone().sub(camPos2D);
+            const t = (diff.x * s.y - diff.y * s.x) / denominator;
+            const u = (diff.x * forward2D.y - diff.y * forward2D.x) / denominator;
+            if (t >= 0 && u >= 0 && u <= 1 && t < closestT) {
+              closestT = t;
+              intersection2D = camPos2D.clone().add(forward2D.clone().multiplyScalar(t));
+            }
+          }
+
+          if (intersection2D) {
+            // Return the computed position; set y to a fixed value (e.g. 1.6 m).
+            return new THREE.Vector3(intersection2D.x, 1.6, intersection2D.y);
+          }
+        }
+        // Fallback: position the panel a fixed distance in front of the camera.
+        const fallbackPos = new THREE.Vector3();
+        camera.getWorldDirection(fallbackPos);
+        fallbackPos.multiplyScalar(fallbackPanelDistance).add(camera.position);
+        fallbackPos.y = 1.6;
+        return fallbackPos;
+      }
+
+      // Creates an in‑world UI panel and places it on the wall (using the boundaries).
+      function createUIPanel() {
+        // Create a canvas element.
+        const canvas = document.createElement("canvas");
+        canvas.width = uiCanvasWidth;
+        canvas.height = uiCanvasHeight;
+        uiContext = canvas.getContext("2d");
+
+        // Create a texture from the canvas.
+        uiTexture = new THREE.CanvasTexture(canvas);
+        uiTexture.encoding = THREE.sRGBEncoding;
+
+        // Create a material for the UI panel.
+        const uiMaterial = new THREE.MeshBasicMaterial({
+          map: uiTexture,
+          transparent: true,
+          side: THREE.DoubleSide,
+        });
+
+        // Create a plane geometry for the UI panel.
+        const uiGeometry = new THREE.PlaneGeometry(1, 0.5); // adjust size (world units) as desired
+        uiMesh = new THREE.Mesh(uiGeometry, uiMaterial);
+
+        // Compute the panel position based on the boundaries.
+        const panelPos = computePanelPositionOnBoundary();
+        uiMesh.position.copy(panelPos);
+
+        // Rotate the panel so that it faces the camera.
+        uiMesh.lookAt(camera.position);
+        scene.add(uiMesh);
+      }
+
+      // Update the UI panel (draw timer and score).
+      function updateUIPanel() {
+        uiContext.clearRect(0, 0, uiCanvasWidth, uiCanvasHeight);
+        uiContext.fillStyle = "rgba(0, 0, 0, 0.6)";
+        uiContext.fillRect(0, 0, uiCanvasWidth, uiCanvasHeight);
+
+        uiContext.font = "48px sans-serif";
+        uiContext.fillStyle = "white";
+        uiContext.textAlign = "left";
+        uiContext.fillText("Time: " + Math.floor(timeLeft) + " sec", 20, 80);
+        uiContext.fillText("Score: " + score, 20, 150);
+
+        if (gameOver) {
+          uiContext.font = "64px sans-serif";
+          uiContext.fillStyle = "red";
+          uiContext.textAlign = "center";
+          uiContext.fillText("GAME OVER", uiCanvasWidth / 2, uiCanvasHeight / 2);
+          uiContext.font = "48px sans-serif";
+          uiContext.fillText(
+            "Tap any controller to Restart",
+            uiCanvasWidth / 2,
+            uiCanvasHeight / 2 + 60
+          );
+        }
+        uiTexture.needsUpdate = true;
+      }
+
       // Called when a controller "select" event occurs.
       function onSelect(event) {
-        // If game over, restart the game on any controller select
+        // If game over, restart.
         if (gameOver) {
           resetGame();
           return;
         }
-
         const controller = event.target;
-        // Create bullet geometry and material
+        // Create a bullet.
         const bulletGeometry = new THREE.SphereGeometry(0.02, 16, 16);
         const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
         const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
         bullet.position.copy(controller.position);
         scene.add(bullet);
 
-        // Determine forward direction from controller orientation
+        // Determine forward direction.
         const speed = 0.1;
         const direction = new THREE.Vector3(0, 0, -1).applyQuaternion(controller.quaternion);
         bullet.userData.velocity = direction.multiplyScalar(speed);
-
         bullets.push(bullet);
       }
 
       function resetGame() {
-        // Reset game variables
         timeLeft = 60;
         score = 0;
         gameOver = false;
 
-        // Remove remaining bullets
-        bullets.forEach(bullet => scene.remove(bullet));
+        // Remove bullets.
+        bullets.forEach((bullet) => scene.remove(bullet));
         bullets = [];
 
-        // Remove remaining targets and recreate them
-        targets.forEach(target => scene.remove(target));
+        // Remove targets and recreate them.
+        targets.forEach((target) => scene.remove(target));
         createTargets();
       }
 
@@ -218,7 +279,6 @@
 
       function render() {
         const delta = clock.getDelta();
-
         if (!gameOver) {
           timeLeft -= delta;
           if (timeLeft <= 0) {
@@ -227,7 +287,7 @@
           }
         }
 
-        // Update bullet positions and remove far-away bullets.
+        // Update bullet positions.
         for (let i = bullets.length - 1; i >= 0; i--) {
           const bullet = bullets[i];
           bullet.position.add(bullet.userData.velocity);
@@ -255,7 +315,7 @@
           }
         }
 
-        // Handle explosion animations for targets.
+        // Animate target explosions.
         for (let i = targets.length - 1; i >= 0; i--) {
           const target = targets[i];
           if (target.userData.exploding) {
@@ -274,7 +334,6 @@
         }
 
         updateUIPanel();
-
         renderer.render(scene, camera);
       }
 
