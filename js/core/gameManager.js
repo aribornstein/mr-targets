@@ -148,8 +148,8 @@ export default class GameManager {
             }
         }
 
-        // Remove bullets that collided with enemies.
-        bulletsToRemove.forEach(index => {
+        // Remove bullets that collided with enemies in descending order.
+        bulletsToRemove.sort((a, b) => b - a).forEach(index => {
             const bullet = this.bulletArray[index];
             this.scene.remove(bullet);
             this.bulletArray.splice(index, 1);

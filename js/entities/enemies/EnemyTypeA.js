@@ -11,10 +11,27 @@ export default class EnemyTypeA extends BaseEnemy {
     this.speed = 0.2;
     this.leftBoundary = -100;
     this.rightBoundary = 100;
+    // Add explosion state flags.
+    this.isExploding = false;
+    this.exploded = false;
+  }
+
+  // New explode method
+  explode() {
+    if (this.isExploding) return;
+    this.isExploding = true;
+    // Optionally trigger explosion visuals here.
+    setTimeout(() => {
+      this.exploded = true;
+    }, 500); // explosion duration in ms
   }
 
   update(delta) {
-    if (!this.isExploding) {
+    if (this.isExploding) {
+      // Once explosion animation is finished, signal removal.
+      if (this.exploded) return true;
+      return false;
+    } else {
       // Example: move side-to-side.
       this.mesh.position.x += this.speed * delta;
       if (this.mesh.position.x > this.rightBoundary || this.mesh.position.x < this.leftBoundary) {
