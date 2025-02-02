@@ -36,6 +36,11 @@ export function updateUIPanel(score, timeLeft, gameOver) {
   uiContext.fillStyle = "rgba(0, 0, 0, 0.6)";
   uiContext.fillRect(0, 0, uiCanvasWidth, uiCanvasHeight);
 
+  uiContext.font = "64px sans-serif";
+  uiContext.fillStyle = "yellow";
+  uiContext.textAlign = "center";
+  uiContext.fillText("Welcome to Crazy Boxes", uiCanvasWidth / 2, 60);
+
   uiContext.font = "48px sans-serif";
   uiContext.fillStyle = "white";
   uiContext.textAlign = "left";
