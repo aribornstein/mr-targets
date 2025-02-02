@@ -4,12 +4,8 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.m
 import { createScene, createCamera, createRenderer } from './scene.js';
 import { setupControllers } from './controllers.js';
 import { createUIPanel, updateUIPanel } from './ui.js';
-import EnemyTypeA from '../entities/enemies/EnemyTypeA.js';
-import EnemyTypeB from '../entities/enemies/EnemyTypeB.js';
 import PelletGun from '../entities/weapons/PelletGun.js';
-
-let bulletArray = []; // Array to track any spawned bullets (if needed)
-let enemyArray = [];  // Array to track enemy objects
+import EnemySpawnManager from './enemySpawnManager.js';
 
 const clock = new THREE.Clock();
 
@@ -26,7 +22,8 @@ export default class GameManager {
     // Set up the in-world UI panel.
     createUIPanel(this.renderer, this.camera, this.scene);
 
-    // Create initial enemy entities.
+    // Create the enemy spawn manager and spawn initial enemies.
+    this.enemySpawnManager = new EnemySpawnManager(this.scene);
     this.createEnemies();
 
     // Initialize game state.
@@ -34,69 +31,32 @@ export default class GameManager {
     this.score = 0;
     this.gameOver = false;
 
-    // Instantiate a weapon (here a PelletGun). In this example, the weapon is fired from the controller.
-    // You could expand this by associating a weapon with each controller.
+    // Instantiate a weapon (here a PelletGun).
     this.currentWeapon = new PelletGun({ fireRate: 2 });
 
     // Handle window resize.
-    window.addEventListener("resize", this.onWindowResize.bind(this));
+    window.addEventListener('resize', this.onWindowResize.bind(this));
 
     // Start the render loop.
     this.renderer.setAnimationLoop(this.render.bind(this));
   }
 
   createEnemies() {
-    // Remove any existing enemy meshes from the scene.
-    enemyArray.forEach(enemy => this.scene.remove(enemy.mesh));
-    enemyArray = [];
+    // Clear any existing enemies.
+    this.enemySpawnManager.clearEnemies();
     // Spawn 5 enemies.
     for (let i = 0; i < 5; i++) {
-      this.spawnEnemy();
+      this.enemySpawnManager.spawnEnemy();
     }
   }
 
-  spawnEnemy() {
-    // Determine a spawn position.
-    // We try to use room boundaries (if available) to spawn the enemy.
-    let spawnPos = new THREE.Vector3();
-    const refSpace = this.renderer.xr.getReferenceSpace();
-    if (refSpace && refSpace.boundsGeometry && refSpace.boundsGeometry.length > 0) {
-      // Convert the XR bounds to 2D points (using X and Z).
-      const polygon = refSpace.boundsGeometry.map(pt => new THREE.Vector2(pt.x, pt.z));
-      if (!polygon[0].equals(polygon[polygon.length - 1])) {
-        polygon.push(polygon[0].clone());
-      }
-      // Compute the bounding box of the polygon.
-      let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-      polygon.forEach(pt => {
-        if (pt.x < minX) minX = pt.x;
-        if (pt.x > maxX) maxX = pt.x;
-        if (pt.y < minZ) minZ = pt.y;
-        if (pt.y > maxZ) maxZ = pt.y;
-      });
-      let candidate;
-      let attempts = 0;
-      while (attempts < 10) {
-        const x = minX + Math.random() * (maxX - minX);
-        const z = minZ + Math.random() * (maxZ - minZ);
-        candidate = new THREE.Vector2(x, z);
-        if (isPointInPolygon(candidate, polygon)) break;
-        attempts++;
-      }
-      spawnPos.set(candidate.x, 1 + Math.random() * 0.5, candidate.y);
-    } else {
-      // Fallback spawn position.
-      spawnPos.set(
-        Math.random() * 2 - 1,
-        1 + Math.random() * 0.5,
-        -2 - Math.random() * 2
-      );
-    }
-
-    // Create an enemy using EnemyTypeA.
-    const enemy = new EnemyTypeB(spawnPos);
-    enemyArray.push(enemy);
-    this.scene.add(enemy.mesh);
+  onEnemyDestroyed(enemy) {
+    // Update score or other game logic as needed.
+    this.score += 10;
+    // Let the spawn manager handle removing the enemy and respawning.
+    this.enemySpawnManager.onEnemyDestroyed(enemy);
+    // Optionally update the UI panel.
+    updateUIPanel(this.score, this.timeLeft);
   }
 
   onSelect(event) {
