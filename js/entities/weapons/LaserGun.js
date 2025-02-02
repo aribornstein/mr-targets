@@ -12,9 +12,9 @@ export default class LaserGun extends BaseWeapon {
    * @param {Number} currentTime The current time (seconds).
    * @param {THREE.Object3D} origin The object (e.g., controller) from which to fire.
    * @param {THREE.Scene} scene The scene to add projectiles to.
-   * @param {THREE.Vector3} target The target position to aim at.
+   * @param {Array} bulletArray The shared bullet array.
    */
-  fire(currentTime, origin, scene, target) {
+  fire(currentTime, origin, scene, bulletArray) {
     if (!this.canFire(currentTime)) return;
     this.lastFired = currentTime;
 
@@ -28,7 +28,7 @@ export default class LaserGun extends BaseWeapon {
 
     // Position bullet at the controller position and offset slightly forward.
     bullet.position.copy(origin.position);
-    const forward = new THREE.Vector3().subVectors(target, origin.position).normalize();
+    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(origin.quaternion).normalize();
     bullet.position.add(forward.clone().multiplyScalar(0.1));
 
     // Set velocity for the bullet.
@@ -37,13 +37,8 @@ export default class LaserGun extends BaseWeapon {
     // Add bullet to the scene.
     scene.add(bullet);
 
-    // Add bullet to a global bullet array for collision detection.
-    // (Ensure that gameManager uses this bullet array.)
-    if (scene.userData.bulletArray) {
-      scene.userData.bulletArray.push(bullet);
-    } else {
-      scene.userData.bulletArray = [bullet];
-    }
+    // Add bullet to the shared bullet array
+    bulletArray.push(bullet);
   }
 
   /**
@@ -52,6 +47,7 @@ export default class LaserGun extends BaseWeapon {
    * @param {Number} deltaTime The time elapsed since the last frame (seconds).
    */
   update(scene, deltaTime) {
+    // This can be removed if bullet updates are handled in gameManager
     if (!scene.userData.bulletArray) return;
 
     scene.userData.bulletArray.forEach(bullet => {

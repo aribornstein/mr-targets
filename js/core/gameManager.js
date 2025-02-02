@@ -111,7 +111,7 @@ export default class GameManager {
     // Instead of directly spawning a bullet, use the current weapon's fire method.
     // Get the current time in seconds.
     const currentTime = performance.now() / 1000;
-    this.currentWeapon.fire(currentTime, controller, this.scene);
+    this.currentWeapon.fire(currentTime, controller, this.scene, bulletArray);
 
     // (If you wish to have both visual bullet objects and weapon fire effects,
     // you can combine the two approaches.)
