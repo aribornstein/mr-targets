@@ -1,5 +1,7 @@
 import EnemyTypeA from '../entities/enemies/EnemyTypeA.js';
 import EnemyTypeB from '../entities/enemies/EnemyTypeB.js';
+import EnemyTypeC from '../entities/enemies/EnemyTypeC.js';
+import EnemyTypeD from '../entities/enemies/EnemyTypeD.js';
 
 export default class EnemySpawnManager {
   constructor(scene) {
@@ -9,12 +11,16 @@ export default class EnemySpawnManager {
 
   // Spawns an enemy of random type
   spawnEnemy() {
-    const enemyType = Math.random() < 0.5 ? 'A' : 'B';
+    const enemyType = Math.random();
     let enemy;
-    if (enemyType === 'A') {
+    if (enemyType < 0.25) {
       enemy = new EnemyTypeA();
-    } else {
+    } else if (enemyType < 0.5) {
       enemy = new EnemyTypeB();
+    } else if (enemyType < 0.75) {
+      enemy = new EnemyTypeC();
+    } else {
+      enemy = new EnemyTypeD();
     }
 
     // Optionally, you can set a random spawn position.
