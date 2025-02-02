@@ -39,6 +39,8 @@ export default class GameManager {
 
     // Start the render loop.
     this.renderer.setAnimationLoop(this.render.bind(this));
+
+    this.bulletArray = [];
   }
 
   createEnemies() {
@@ -71,7 +73,7 @@ export default class GameManager {
     // Instead of directly spawning a bullet, use the current weapon's fire method.
     // Get the current time in seconds.
     const currentTime = performance.now() / 1000;
-    this.currentWeapon.fire(currentTime, controller, this.scene, bulletArray);
+    this.currentWeapon.fire(currentTime, controller, this.scene, this.bulletArray);
 
     // (If you wish to have both visual bullet objects and weapon fire effects,
     // you can combine the two approaches.)
@@ -84,8 +86,8 @@ export default class GameManager {
     this.gameOver = false;
 
     // Remove all bullets.
-    bulletArray.forEach(bullet => this.scene.remove(bullet));
-    bulletArray = [];
+    this.bulletArray.forEach(bullet => this.scene.remove(bullet));
+    this.bulletArray = [];
 
     // Remove all enemy meshes.
     enemyArray.forEach(enemy => this.scene.remove(enemy.mesh));
@@ -112,18 +114,18 @@ export default class GameManager {
     }
 
     // Update bullets.
-    for (let i = bulletArray.length - 1; i >= 0; i--) {
-      const bullet = bulletArray[i];
+    for (let i = this.bulletArray.length - 1; i >= 0; i--) {
+      const bullet = this.bulletArray[i];
       bullet.position.add(bullet.userData.velocity);
       if (bullet.position.distanceTo(this.camera.position) > 20) {
         this.scene.remove(bullet);
-        bulletArray.splice(i, 1);
+        this.bulletArray.splice(i, 1);
       }
     }
 
     // Check for collisions between any bullets and enemies.
-    for (let i = bulletArray.length - 1; i >= 0; i--) {
-      const bullet = bulletArray[i];
+    for (let i = this.bulletArray.length - 1; i >= 0; i--) {
+      const bullet = this.bulletArray[i];
       for (let j = enemyArray.length - 1; j >= 0; j--) {
         const enemy = enemyArray[j];
         if (!enemy.isExploding) {
@@ -131,7 +133,7 @@ export default class GameManager {
             enemy.explode();
             this.score++;
             this.scene.remove(bullet);
-            bulletArray.splice(i, 1);
+            this.bulletArray.splice(i, 1);
             break;
           }
         }
