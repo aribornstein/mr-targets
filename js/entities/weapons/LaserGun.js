@@ -4,13 +4,11 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.m
 
 export default class LaserGun extends BaseWeapon {
   constructor(options = {}) {
-    // You can set a custom fire rate if desired.
     super({ fireRate: options.fireRate || 2 });
-    // Additional LaserGun-specific properties can be set here.
   }
 
   /**
-   * Fire the laser gun.
+   * Fire the laser gun as a projectile.
    * @param {Number} currentTime The current time (seconds).
    * @param {THREE.Object3D} origin The object (e.g., controller) from which to fire.
    * @param {THREE.Scene} scene The scene to add projectiles to.
@@ -18,28 +16,32 @@ export default class LaserGun extends BaseWeapon {
   fire(currentTime, origin, scene) {
     if (!this.canFire(currentTime)) return;
     this.lastFired = currentTime;
-    
-    // Create a "laser beam" as a thin cylinder.
-    const beamLength = 1; // meters
-    const beamGeometry = new THREE.CylinderGeometry(0.005, 0.005, beamLength, 8);
-    const beamMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-    const beam = new THREE.Mesh(beamGeometry, beamMaterial);
-    
-    // Position the beam at the origin. Adjust so that it extends forward.
-    // The default cylinder in Three.js is centered on the origin along the Y-axis.
-    // We rotate it to point along the -Z axis.
-    beam.rotation.x = Math.PI / 2;
-    // Set the beam’s position relative to the origin.
-    beam.position.copy(origin.position);
-    // Offset it so that its front end is at the origin.
-    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(origin.quaternion);
-    beam.position.add(forward.clone().multiplyScalar(beamLength / 2));
-    
-    scene.add(beam);
-    
-    // Remove the beam after a short delay.
-    setTimeout(() => {
-      scene.remove(beam);
-    }, 100); // Remove after 100ms (adjust as needed)
+
+    // Create a bullet geometry (small cylinder)
+    const bulletGeometry = new THREE.CylinderGeometry(0.005, 0.005, 0.2, 8);
+    const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
+
+    // Rotate bullet to be forward facing.
+    bullet.rotation.x = Math.PI / 2;
+
+    // Position bullet at the controller position and offset slightly forward.
+    bullet.position.copy(origin.position);
+    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(origin.quaternion).normalize();
+    bullet.position.add(forward.clone().multiplyScalar(0.1));
+
+    // Set velocity for the bullet.
+    bullet.userData.velocity = forward.multiplyScalar(0.5); // adjust speed as needed
+
+    // Add bullet to the scene.
+    scene.add(bullet);
+
+    // Add bullet to a global bullet array for collision detection.
+    // (Ensure that gameManager uses this bullet array.)
+    if (scene.userData.bulletArray) {
+      scene.userData.bulletArray.push(bullet);
+    } else {
+      scene.userData.bulletArray = [bullet];
+    }
   }
 }
