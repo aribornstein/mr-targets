@@ -24,7 +24,7 @@ export default class GameManager {
 
         // Create the enemy spawn manager and spawn initial enemies.
         this.enemySpawnManager = new EnemySpawnManager(this.scene);
-        this.createEnemies();
+        this.enemySpawnManager.spawnInitialEnemies();
 
         // Initialize game state.
         this.timeLeft = 60;
@@ -41,15 +41,6 @@ export default class GameManager {
         this.renderer.setAnimationLoop(this.render.bind(this));
 
         this.bulletArray = [];
-    }
-
-    createEnemies() {
-        // Clear any existing enemies.
-        this.enemySpawnManager.clearEnemies();
-        // Spawn 5 enemies.
-        for (let i = 0; i < 5; i++) {
-            this.enemySpawnManager.spawnEnemy();
-        }
     }
 
     onEnemyDestroyed(enemy) {
@@ -90,11 +81,7 @@ export default class GameManager {
         this.bulletArray = [];
 
         // Clear and respawn enemies.
-        this.createEnemies();
-    }
-
-    spawnEnemy() {
-        this.enemySpawnManager.spawnEnemy();
+        this.enemySpawnManager.spawnInitialEnemies();
     }
 
     onWindowResize() {
@@ -150,15 +137,7 @@ export default class GameManager {
         });
 
         // Update enemies.
-        for (let i = this.enemySpawnManager.enemyArray.length - 1; i >= 0; i--) {
-            const enemy = this.enemySpawnManager.enemyArray[i];
-            if (enemy.update(delta)) {
-                // Once an enemy has finished its explosion, remove it and spawn a new one.
-                this.scene.remove(enemy.mesh);
-                this.enemySpawnManager.enemyArray.splice(i, 1);
-                this.spawnEnemy();
-            }
-        }
+        this.enemySpawnManager.updateEnemies(delta);
 
         // Update the UI panel.
         updateUIPanel(this.score, this.timeLeft, this.gameOver);

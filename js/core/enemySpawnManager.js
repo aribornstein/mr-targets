@@ -51,4 +51,23 @@ export default class EnemySpawnManager {
     this.enemyArray.forEach(enemy => this.scene.remove(enemy.mesh));
     this.enemyArray = [];
   }
+
+  // Update all enemies and handle their removal if needed
+  updateEnemies(delta) {
+    for (let i = this.enemyArray.length - 1; i >= 0; i--) {
+      const enemy = this.enemyArray[i];
+      if (enemy.update(delta)) {
+        this.removeEnemy(enemy);
+        this.spawnEnemy();
+      }
+    }
+  }
+
+  // Spawns initial set of enemies
+  spawnInitialEnemies(number_of_enemies = 5) {
+    this.clearEnemies();
+    for (let i = 0; i < number_of_enemies; i++) {
+      this.spawnEnemy();
+    }
+  }
 }
