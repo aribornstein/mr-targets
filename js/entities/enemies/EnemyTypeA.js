@@ -9,8 +9,8 @@ export default class EnemyTypeA extends BaseEnemy {
     this.material.color.setHex(0x00ff00);
     this.score = 10;
     this.speed = 0.2;
-    this.leftBoundary = -10;
-    this.rightBoundary = 10;
+    this.leftBoundary = -100;
+    this.rightBoundary = 100;
   }
 
   update(delta) {
