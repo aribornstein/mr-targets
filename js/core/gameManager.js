@@ -1,10 +1,9 @@
-// js/core/gameManager.js
-
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.module.js';
 import { createScene, createCamera, createRenderer } from './scene.js';
 import { setupControllers } from './controllers.js';
 import { createUIPanel, updateUIPanel } from './ui.js';
 import PelletGun from '../entities/weapons/PelletGun.js';
+import LaserGun from '../entities/weapons/LaserGun.js'; // Import another weapon
 import EnemySpawnManager from './enemySpawnManager.js';
 
 const clock = new THREE.Clock();
@@ -17,7 +16,7 @@ export default class GameManager {
         this.renderer = createRenderer();
 
         // Set up controllers. The onSelect callback is bound to this instance.
-        setupControllers(this.renderer, this.scene, this.onSelect.bind(this));
+        setupControllers(this.renderer, this.scene, this.onSelect.bind(this), this.onGripPress.bind(this));
 
         // Set up the in-world UI panel.
         createUIPanel(this.renderer, this.camera, this.scene);
@@ -68,6 +67,15 @@ export default class GameManager {
 
         // (If you wish to have both visual bullet objects and weapon fire effects,
         // you can combine the two approaches.)
+    }
+
+    onGripPress(event) {
+        // Switch weapon when the grip button is pressed.
+        if (this.currentWeapon instanceof PelletGun) {
+            this.currentWeapon = new LaserGun({ fireRate: 1 });
+        } else {
+            this.currentWeapon = new PelletGun({ fireRate: 2 });
+        }
     }
 
     resetGame() {
