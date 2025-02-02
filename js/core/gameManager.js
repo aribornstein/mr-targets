@@ -6,7 +6,7 @@ import { setupControllers } from './controllers.js';
 import { createUIPanel, updateUIPanel } from './ui.js';
 import EnemyTypeA from '../entities/enemies/EnemyTypeA.js';
 import EnemyTypeB from '../entities/enemies/EnemyTypeB.js';
-import LaserGun from '../entities/weapons/LaserGun.js';
+import PelletGun from '../entities/weapons/PelletGun.js';
 
 let bulletArray = []; // Array to track any spawned bullets (if needed)
 let enemyArray = [];  // Array to track enemy objects
@@ -34,9 +34,9 @@ export default class GameManager {
     this.score = 0;
     this.gameOver = false;
 
-    // Instantiate a weapon (here a LaserGun). In this example, the weapon is fired from the controller.
+    // Instantiate a weapon (here a PelletGun). In this example, the weapon is fired from the controller.
     // You could expand this by associating a weapon with each controller.
-    this.currentWeapon = new LaserGun({ fireRate: 2 });
+    this.currentWeapon = new PelletGun({ fireRate: 2 });
 
     // Handle window resize.
     window.addEventListener("resize", this.onWindowResize.bind(this));
