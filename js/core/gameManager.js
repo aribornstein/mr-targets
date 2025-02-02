@@ -5,6 +5,7 @@ import { createScene, createCamera, createRenderer } from './scene.js';
 import { setupControllers } from './controllers.js';
 import { createUIPanel, updateUIPanel } from './ui.js';
 import EnemyTypeA from '../entities/enemies/EnemyTypeA.js';
+import EnemyTypeB from '../entities/enemies/EnemyTypeB.js';
 import LaserGun from '../entities/weapons/LaserGun.js';
 
 let bulletArray = []; // Array to track any spawned bullets (if needed)
@@ -93,7 +94,7 @@ export default class GameManager {
     }
 
     // Create an enemy using EnemyTypeA.
-    const enemy = new EnemyTypeA(spawnPos);
+    const enemy = new EnemyTypeB(spawnPos);
     enemyArray.push(enemy);
     this.scene.add(enemy.mesh);
   }
