@@ -1,17 +1,13 @@
 // js/core/ui.js
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.module.js';
-import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.150.1/examples/jsm/webxr/ARButton.js';
 
-// For this example, we create an in-world UI panel that is placed on the wall.
-// We use the XR bounded-floor (if available) to position the panel.
 const uiCanvasWidth = 512;
 const uiCanvasHeight = 256;
 const fallbackPanelDistance = 3; // meters
 
 let uiMesh, uiTexture, uiContext;
 
-export function createUIPanel(scene, camera, renderer) {
-  // Create a canvas.
+export function createUIPanel(renderer, camera, scene) {
   const canvas = document.createElement("canvas");
   canvas.width = uiCanvasWidth;
   canvas.height = uiCanvasHeight;
@@ -29,7 +25,6 @@ export function createUIPanel(scene, camera, renderer) {
   const uiGeometry = new THREE.PlaneGeometry(1, 0.5);
   uiMesh = new THREE.Mesh(uiGeometry, uiMaterial);
 
-  // Compute the panel position.
   const panelPos = computePanelPositionOnBoundary(renderer, camera);
   uiMesh.position.copy(panelPos);
   uiMesh.lookAt(camera.position);
@@ -53,7 +48,11 @@ export function updateUIPanel(score, timeLeft, gameOver) {
     uiContext.textAlign = "center";
     uiContext.fillText("GAME OVER", uiCanvasWidth / 2, uiCanvasHeight / 2);
     uiContext.font = "48px sans-serif";
-    uiContext.fillText("Tap any controller to Restart", uiCanvasWidth / 2, uiCanvasHeight / 2 + 60);
+    uiContext.fillText(
+      "Tap any controller to Restart",
+      uiCanvasWidth / 2,
+      uiCanvasHeight / 2 + 60
+    );
   }
   uiTexture.needsUpdate = true;
 }
@@ -61,7 +60,6 @@ export function updateUIPanel(score, timeLeft, gameOver) {
 function computePanelPositionOnBoundary(renderer, camera) {
   const refSpace = renderer.xr.getReferenceSpace();
   if (refSpace && refSpace.boundsGeometry && refSpace.boundsGeometry.length > 0) {
-    // Convert bounds to 2D points on the XZ plane.
     const points = refSpace.boundsGeometry.map(pt => new THREE.Vector2(pt.x, pt.z));
     if (!points[0].equals(points[points.length - 1])) {
       points.push(points[0].clone());
@@ -90,7 +88,6 @@ function computePanelPositionOnBoundary(renderer, camera) {
       return new THREE.Vector3(intersection2D.x, 1.6, intersection2D.y);
     }
   }
-  // Fallback position.
   const fallbackPos = new THREE.Vector3();
   camera.getWorldDirection(fallbackPos);
   fallbackPos.multiplyScalar(fallbackPanelDistance).add(camera.position);

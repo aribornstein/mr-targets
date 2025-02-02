@@ -3,7 +3,6 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.m
 
 export default class BaseEnemy {
   constructor(position = new THREE.Vector3()) {
-    // Default enemy geometry and material.
     this.geometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
     this.material = new THREE.MeshStandardMaterial({
       color: 0xff0000,
@@ -27,8 +26,6 @@ export default class BaseEnemy {
       if (progress >= 1) {
         return true; // Finished exploding.
       }
-    } else {
-      // Common enemy behavior can be placed here.
     }
     return false;
   }
