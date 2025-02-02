@@ -36,16 +36,16 @@ export function updateUIPanel(score, timeLeft, gameOver) {
   uiContext.fillStyle = "rgba(0, 0, 0, 0.6)";
   uiContext.fillRect(0, 0, uiCanvasWidth, uiCanvasHeight);
 
-  uiContext.font = "48px sans-serif"; // Adjusted font size
+  uiContext.font = "36px sans-serif"; // Adjusted font size
   uiContext.fillStyle = "yellow";
   uiContext.textAlign = "center";
-  uiContext.fillText("Welcome to Crazy Boxes", uiCanvasWidth / 2, 50); // Adjusted position
+  uiContext.fillText("Welcome to Crazy Boxes", uiCanvasWidth / 2, 40); // Adjusted position
 
   uiContext.font = "48px sans-serif";
   uiContext.fillStyle = "white";
   uiContext.textAlign = "left";
-  uiContext.fillText("Time: " + Math.floor(timeLeft) + " sec", 20, 80);
-  uiContext.fillText("Score: " + score, 20, 150);
+  uiContext.fillText("Time: " + Math.floor(timeLeft) + " sec", 20, 100); // Adjusted position
+  uiContext.fillText("Score: " + score, 20, 170); // Adjusted position
 
   if (gameOver) {
     uiContext.font = "64px sans-serif";
