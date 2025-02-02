@@ -31,13 +31,13 @@ export default class EnemyTypeA extends BaseEnemy {
       // Once explosion animation is finished, signal removal.
       if (this.exploded) return true;
       return false;
-    } else {
-      // Example: move side-to-side.
-      this.mesh.position.x += this.speed * delta;
-      if (this.mesh.position.x > this.rightBoundary || this.mesh.position.x < this.leftBoundary) {
-        this.speed = -this.speed;
-      }
     }
-    return super.update(delta);
+    // Update movement directly on the enemy mesh.
+    this.mesh.position.x += this.speed * delta;
+    if (this.mesh.position.x > this.rightBoundary || this.mesh.position.x < this.leftBoundary) {
+      this.speed = -this.speed;
+    }
+    // Do not call super.update to avoid resetting the position.
+    return false;
   }
 }
