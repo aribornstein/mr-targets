@@ -41,20 +41,23 @@ export default class GameManager {
     this.renderer.setAnimationLoop(this.render.bind(this));
 
     this.bulletArray = [];
+    this.enemyArray = [];
   }
 
   createEnemies() {
     // Clear any existing enemies.
     this.enemySpawnManager.clearEnemies();
+    this.enemyArray = [];
     // Spawn 5 enemies.
     for (let i = 0; i < 5; i++) {
-      this.enemySpawnManager.spawnEnemy();
+      const newEnemy = this.enemySpawnManager.spawnEnemy();
+      this.enemyArray.push(newEnemy);
     }
   }
 
   onEnemyDestroyed(enemy) {
     // Update score or other game logic as needed.
-    this.score += 10;
+    this.score += enemy.score;
     // Let the spawn manager handle removing the enemy and respawning.
     this.enemySpawnManager.onEnemyDestroyed(enemy);
     // Optionally update the UI panel.
@@ -90,9 +93,14 @@ export default class GameManager {
     this.bulletArray = [];
 
     // Remove all enemy meshes.
-    enemyArray.forEach(enemy => this.scene.remove(enemy.mesh));
-    enemyArray = [];
+    this.enemyArray.forEach(enemy => this.scene.remove(enemy.mesh));
+    this.enemyArray = [];
     this.createEnemies();
+  }
+
+  spawnEnemy() {
+    const newEnemy = this.enemySpawnManager.spawnEnemy();
+    this.enemyArray.push(newEnemy);
   }
 
   onWindowResize() {
@@ -126,8 +134,8 @@ export default class GameManager {
     // Check for collisions between any bullets and enemies.
     for (let i = this.bulletArray.length - 1; i >= 0; i--) {
       const bullet = this.bulletArray[i];
-      for (let j = enemyArray.length - 1; j >= 0; j--) {
-        const enemy = enemyArray[j];
+      for (let j = this.enemyArray.length - 1; j >= 0; j--) {
+        const enemy = this.enemyArray[j];
         if (!enemy.isExploding) {
           if (bullet.position.distanceTo(enemy.mesh.position) < 0.28) {
             enemy.explode();
@@ -141,12 +149,12 @@ export default class GameManager {
     }
 
     // Update enemies.
-    for (let i = enemyArray.length - 1; i >= 0; i--) {
-      const enemy = enemyArray[i];
+    for (let i = this.enemyArray.length - 1; i >= 0; i--) {
+      const enemy = this.enemyArray[i];
       if (enemy.update(delta)) {
         // Once an enemy has finished its explosion, remove it and spawn a new one.
         this.scene.remove(enemy.mesh);
-        enemyArray.splice(i, 1);
+        this.enemyArray.splice(i, 1);
         this.spawnEnemy();
       }
     }

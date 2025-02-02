@@ -9,6 +9,7 @@ export default class BaseEnemy {
       transparent: true,
       opacity: 1.0
     });
+    this.score = 1;
     this.mesh = new THREE.Mesh(this.geometry, this.material);
     this.mesh.position.copy(position);
     this.isExploding = false;

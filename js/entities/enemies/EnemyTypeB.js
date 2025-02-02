@@ -5,6 +5,7 @@ export default class EnemyTypeB extends BaseEnemy {
   constructor(position) {
     super(position);
     // Customize appearance (red color)
+    this.score = 5;
     this.material.color.setHex(0xff0000);
     // No movement speed needed for stationary enemy
   }

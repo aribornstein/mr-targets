@@ -7,6 +7,7 @@ export default class EnemyTypeA extends BaseEnemy {
     super(position);
     // Customize appearance (green color) and add extra behavior.
     this.material.color.setHex(0x00ff00);
+    this.score = 10;
     this.speed = 0.2;
     this.leftBoundary = -10;
     this.rightBoundary = 10;
