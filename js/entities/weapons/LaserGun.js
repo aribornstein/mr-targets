@@ -18,13 +18,10 @@ export default class LaserGun extends BaseWeapon {
     if (!this.canFire(currentTime)) return;
     this.lastFired = currentTime;
 
-    // Create a bullet geometry (small cylinder)
-    const bulletGeometry = new THREE.CylinderGeometry(0.005, 0.005, 0.2, 8);
+    // Create a bullet geometry (thin, long box)
+    const bulletGeometry = new THREE.BoxGeometry(0.01, 0.01, 0.2);
     const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
     const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
-
-    // Rotate bullet to be forward facing.
-    bullet.rotation.x = Math.PI / 2;
 
     // Position bullet at the controller position and offset slightly forward.
     bullet.position.copy(origin.position);
