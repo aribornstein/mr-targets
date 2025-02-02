@@ -12,8 +12,9 @@ export default class LaserGun extends BaseWeapon {
    * @param {Number} currentTime The current time (seconds).
    * @param {THREE.Object3D} origin The object (e.g., controller) from which to fire.
    * @param {THREE.Scene} scene The scene to add projectiles to.
+   * @param {THREE.Vector3} target The target position to aim at.
    */
-  fire(currentTime, origin, scene) {
+  fire(currentTime, origin, scene, target) {
     if (!this.canFire(currentTime)) return;
     this.lastFired = currentTime;
 
@@ -27,7 +28,7 @@ export default class LaserGun extends BaseWeapon {
 
     // Position bullet at the controller position and offset slightly forward.
     bullet.position.copy(origin.position);
-    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(origin.quaternion).normalize();
+    const forward = new THREE.Vector3().subVectors(target, origin.position).normalize();
     bullet.position.add(forward.clone().multiplyScalar(0.1));
 
     // Set velocity for the bullet.
@@ -43,5 +44,18 @@ export default class LaserGun extends BaseWeapon {
     } else {
       scene.userData.bulletArray = [bullet];
     }
+  }
+
+  /**
+   * Update the bullets' positions based on their velocities.
+   * @param {THREE.Scene} scene The scene containing the bullets.
+   * @param {Number} deltaTime The time elapsed since the last frame (seconds).
+   */
+  update(scene, deltaTime) {
+    if (!scene.userData.bulletArray) return;
+
+    scene.userData.bulletArray.forEach(bullet => {
+      bullet.position.add(bullet.userData.velocity.clone().multiplyScalar(deltaTime));
+    });
   }
 }
