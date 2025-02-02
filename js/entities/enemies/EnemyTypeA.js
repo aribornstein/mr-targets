@@ -8,12 +8,17 @@ export default class EnemyTypeA extends BaseEnemy {
     // Customize appearance (green color) and add extra behavior.
     this.material.color.setHex(0x00ff00);
     this.speed = 0.2;
+    this.leftBoundary = -10;
+    this.rightBoundary = 10;
   }
 
   update(delta) {
     if (!this.isExploding) {
       // Example: move side-to-side.
       this.mesh.position.x += this.speed * delta;
+      if (this.mesh.position.x > this.rightBoundary || this.mesh.position.x < this.leftBoundary) {
+        this.speed = -this.speed;
+      }
     }
     return super.update(delta);
   }
