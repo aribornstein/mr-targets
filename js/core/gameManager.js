@@ -21,9 +21,8 @@ export default class GameManager {
         // Set up the in-world UI panel.
         createUIPanel(this.renderer, this.camera, this.scene);
 
-        // Create the enemy spawn manager and spawn initial enemies.
+        // Create the enemy spawn manager.
         this.enemySpawnManager = new EnemySpawnManager(this.scene);
-        this.enemySpawnManager.spawnInitialEnemies();
 
         // Initialize game state.
         this.timeLeft = 60;
@@ -55,8 +54,14 @@ export default class GameManager {
                     this.enemySpawnManager.setRoomBoundary(roomPolygon);
                 }
             }
+            if (!this.gameStarted) {
+                this.enemySpawnManager.spawnInitialEnemies();
+                this.gameStarted = true;
+            }
         });
+
     }
+
 
     onEnemyDestroyed(enemy) {
         // Update score or other game logic as needed.
