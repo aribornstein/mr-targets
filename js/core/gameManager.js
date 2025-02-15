@@ -40,6 +40,22 @@ export default class GameManager {
         this.renderer.setAnimationLoop(this.render.bind(this));
 
         this.bulletArray = [];
+
+        // NEW: When the AR session starts, update room boundary using the real AR bounds.
+        this.renderer.xr.addEventListener('sessionstart', () => {
+            const session = this.renderer.xr.getSession();
+            if (session && session.boundsGeometry) {
+                // Convert the bounds (DOMPointReadOnly) to an array of {x, y} points.
+                // Here we map x -> x and use z (or y from AR space if provided) as y.
+                const roomPolygon = session.boundsGeometry.map(pt => ({ x: pt.x, y: pt.z }));
+                // Optionally store the room boundary.
+                this.roomBoundary = roomPolygon;
+                // Update the enemy spawn manager.
+                if (this.enemySpawnManager.setRoomBoundary) {
+                    this.enemySpawnManager.setRoomBoundary(roomPolygon);
+                }
+            }
+        });
     }
 
     onEnemyDestroyed(enemy) {

@@ -7,9 +7,47 @@ export default class EnemySpawnManager {
   constructor(scene) {
     this.scene = scene;
     this.enemyArray = [];
+    // NEW: Room boundary as a polygon (array of points {x, y}).
+    this.roomBoundary = null;
   }
 
-  // Spawns an enemy of random type
+  // NEW: Allow external update of room boundary.
+  setRoomBoundary(polygon) {
+    this.roomBoundary = polygon;
+  }
+
+  // Helper: Determines if a 2D point is inside a polygon (ray-casting).
+  isPointInPolygon(point, polygon) {
+    let inside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const xi = polygon[i].x, yi = polygon[i].y;
+      const xj = polygon[j].x, yj = polygon[j].y;
+      const intersect =
+        ((yi > point.y) !== (yj > point.y)) &&
+        (point.x < ((xj - xi) * (point.y - yi)) / (yj - yi) + xi);
+      if (intersect) inside = !inside;
+    }
+    return inside;
+  }
+
+  // NEW: Helper to generate a random point inside the room boundary.
+  getRandomPointInPolygon(polygon) {
+    // Compute a bounding box.
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    polygon.forEach(pt => {
+      if (pt.x < minX) minX = pt.x;
+      if (pt.x > maxX) maxX = pt.x;
+      if (pt.y < minY) minY = pt.y;
+      if (pt.y > maxY) maxY = pt.y;
+    });
+    let pt;
+    do {
+      pt = { x: minX + Math.random() * (maxX - minX), y: minY + Math.random() * (maxY - minY) };
+    } while (!this.isPointInPolygon(pt, polygon));
+    return pt;
+  }
+
+  // Spawns an enemy of random type.
   spawnEnemy() {
     const enemyType = Math.random();
     let enemy;
@@ -23,12 +61,18 @@ export default class EnemySpawnManager {
       enemy = new EnemyTypeD();
     }
 
-    // Optionally, you can set a random spawn position.
-    enemy.mesh.position.set(
-      (Math.random() - 0.5) * 10,
-      0,
-      (Math.random() - 0.5) * 10
-    );
+    let spawnX, spawnZ;
+    if (this.roomBoundary) {
+      // NEW: Use room boundary to decide a spawn position.
+      const pt = this.getRandomPointInPolygon(this.roomBoundary);
+      spawnX = pt.x;
+      spawnZ = pt.y;
+    } else {
+      // ...existing code...
+      spawnX = (Math.random() - 0.5) * 10;
+      spawnZ = (Math.random() - 0.5) * 10;
+    }
+    enemy.mesh.position.set(spawnX, 0, spawnZ);
 
     this.scene.add(enemy.mesh);
     this.enemyArray.push(enemy);
@@ -62,6 +106,15 @@ export default class EnemySpawnManager {
   updateEnemies(delta) {
     for (let i = this.enemyArray.length - 1; i >= 0; i--) {
       const enemy = this.enemyArray[i];
+      // NEW: If room boundary is defined, check that enemy remains within bounds.
+      if (this.roomBoundary) {
+        const pos2D = { x: enemy.mesh.position.x, y: enemy.mesh.position.z };
+        if (!this.isPointInPolygon(pos2D, this.roomBoundary)) {
+          this.removeEnemy(enemy);
+          this.spawnEnemy();
+          continue;
+        }
+      }
       if (enemy.update(delta)) {
         this.removeEnemy(enemy);
         this.spawnEnemy();
