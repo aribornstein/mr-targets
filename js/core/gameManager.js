@@ -38,30 +38,48 @@ export default class GameManager {
         this.bulletArray = [];
 
         // NEW: When the AR session starts, update room boundary using the real AR bounds.
-        this.renderer.xr.addEventListener('sessionstart', () => {
+        this.renderer.xr.addEventListener('sessionstart', async () => {
             const session = this.renderer.xr.getSession();
-            debugger;
-            if (session && session.boundsGeometry) {
-                // Convert the bounds (DOMPointReadOnly) to an array of {x, y} points.
-                // Here we map x -> x and use z (or y from AR space if provided) as y.
-                console.log(session.boundsGeometry);
-                const roomPolygon = session.boundsGeometry.map(pt => ({ x: pt.x, y: pt.z }));
-                // Optionally store the room boundary.
-                this.roomBoundary = roomPolygon;
-                // Update the enemy spawn manager.
+            try {
+              // Request the bounded-floor reference space explicitly.
+              const refSpace = await session.requestReferenceSpace('bounded-floor');
+              if (refSpace.boundsGeometry && refSpace.boundsGeometry.length) {
+                console.log('Room bounds:', refSpace.boundsGeometry);
+                // Convert bounds to THREE.Vector3s (assuming y=0 for floor level)
+                const points = refSpace.boundsGeometry.map(pt => new THREE.Vector3(pt.x, 0, pt.z));
+                
+                // Close the loop: THREE.LineLoop automatically connects last to first,
+                // so we can use the points array directly.
+                const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                const lineMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 2 });
+                const boundaryLine = new THREE.LineLoop(geometry, lineMaterial);
+                
+                // Optionally, store this boundary for further logic (like enemy spawning)
+                this.roomBoundary = points.map(pt => ({ x: pt.x, y: pt.z }));
+                
+                // Add the boundary visualization to the scene.
+                this.scene.add(boundaryLine);
+                
+                // Update enemy spawn manager if available.
                 if (this.enemySpawnManager.setRoomBoundary) {
-                    this.enemySpawnManager.setRoomBoundary(roomPolygon);
+                  this.enemySpawnManager.setRoomBoundary(this.roomBoundary);
                 }
+              } else {
+                console.warn('No boundsGeometry available in the bounded-floor reference space.');
+              }
+            } catch (err) {
+              console.warn('Bounded reference space not available, falling back...', err);
             }
+            
             if (!this.gameStarted) {
-                this.enemySpawnManager.spawnInitialEnemies();
-                this.gameStarted = true;
+              this.enemySpawnManager.spawnInitialEnemies();
+              this.gameStarted = true;
             }
-            // Start the render loop only after AR session starts
+            
+            // Start the render loop only after the AR session starts.
             this.renderer.setAnimationLoop(this.render.bind(this));
-        });
-
-    }
+          });
+    }          
 
 
     onEnemyDestroyed(enemy) {
