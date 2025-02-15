@@ -34,8 +34,8 @@ export function createRenderer() {
   // Create ARButton so that passthrough and AR session work.
   document.body.appendChild(
     ARButton.createButton(renderer, {
-      requiredFeatures: ["hit-test", "bounded-floor"],
-      optionalFeatures: ["dom-overlay", "mesh-detection"],
+      requiredFeatures: ["hit-test", "bounded-floor", "mesh-detection"],
+      optionalFeatures: ["dom-overlay"],
       domOverlay: { root: document.body }
     })
   );
