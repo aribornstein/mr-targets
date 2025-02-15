@@ -35,7 +35,7 @@ export function createRenderer() {
   document.body.appendChild(
     ARButton.createButton(renderer, {
       requiredFeatures: ["hit-test", "bounded-floor"],
-      optionalFeatures: ["dom-overlay"],
+      optionalFeatures: ["dom-overlay", "mesh-detection"],
       domOverlay: { root: document.body }
     })
   );

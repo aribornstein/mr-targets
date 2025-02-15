@@ -44,21 +44,20 @@ export default class GameManager {
               // Request the bounded-floor reference space explicitly.
               const refSpace = await session.requestReferenceSpace('bounded-floor');
               if (refSpace.boundsGeometry && refSpace.boundsGeometry.length) {
-                console.log('Room bounds:', refSpace.boundsGeometry);
                 // Convert bounds to THREE.Vector3s (assuming y=0 for floor level)
-                const points = refSpace.boundsGeometry.map(pt => new THREE.Vector3(pt.x, 0, pt.z));
+                const points = refSpace.boundsGeometry.map(pt => new THREE.Vector3(pt.x, pt.y, pt.z));
                 
-                // Close the loop: THREE.LineLoop automatically connects last to first,
-                // so we can use the points array directly.
-                const geometry = new THREE.BufferGeometry().setFromPoints(points);
-                const lineMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 2 });
-                const boundaryLine = new THREE.LineLoop(geometry, lineMaterial);
+                // // Close the loop: THREE.LineLoop automatically connects last to first,
+                // // so we can use the points array directly.
+                // const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                // const lineMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 2 });
+                // const boundaryLine = new THREE.LineLoop(geometry, lineMaterial);
                 
                 // Optionally, store this boundary for further logic (like enemy spawning)
                 this.roomBoundary = points.map(pt => ({ x: pt.x, y: pt.z }));
                 
-                // Add the boundary visualization to the scene.
-                this.scene.add(boundaryLine);
+                // // Add the boundary visualization to the scene.
+                // this.scene.add(boundaryLine);
                 
                 // Update enemy spawn manager if available.
                 if (this.enemySpawnManager.setRoomBoundary) {
@@ -71,6 +70,27 @@ export default class GameManager {
               console.warn('Bounded reference space not available, falling back...', err);
             }
             
+            // NEW: Set up mesh-detection if available.
+            // Note: The event name and mesh data structure might vary based on the experimental API.
+            if (session.supportedFeatures && session.supportedFeatures.includes('mesh-detection')) {
+                session.addEventListener('meshdetection', (event) => {
+                // Assume event.meshData contains an array of vertices, each with a .y property.
+                const meshData = event.meshData;
+                let minY = Infinity;
+                let maxY = -Infinity;
+                meshData.vertices.forEach(vertex => {
+                    if (vertex.y < minY) minY = vertex.y;
+                    if (vertex.y > maxY) maxY = vertex.y;
+                });
+                const roomHeight = maxY - minY;
+                console.log("Room height (from mesh detection):", roomHeight);
+                // You might want to store this value for further use in your game logic.
+                this.roomHeight = roomHeight;
+                });
+            } else {
+                console.warn("Mesh detection feature not available in this session.");
+            }
+
             if (!this.gameStarted) {
               this.enemySpawnManager.spawnInitialEnemies();
               this.gameStarted = true;
