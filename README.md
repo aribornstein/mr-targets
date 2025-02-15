@@ -43,6 +43,22 @@ We welcome contributions to the project. Please follow these steps to contribute
     ```
 5. Create a pull request.
 
+## Todo 
+- Fix spawning of enemies to be in the same boundry as the player
+- Better AI Generated meshes and graphics for enemies
+- Add sound effects
+- Add physics
+- Add power ups
+- New Weapons
+- New Enemies
+- Leaderboard
+- Add user health
+- Implement boss battles with unique mechanics
+- Enhance UI feedback and controls
+- Add multiple difficulty levels (Easy, Medium, Hard)
+- Integrate online high scores and ranking system
+- Optimize enemy AI for varied behavior patterns
+
 ## License
 
 This project is licensed under the MIT License. See the `LICENSE` file for more details.
