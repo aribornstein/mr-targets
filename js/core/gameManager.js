@@ -40,11 +40,11 @@ export default class GameManager {
         // NEW: When the AR session starts, update room boundary using the real AR bounds.
         this.renderer.xr.addEventListener('sessionstart', () => {
             const session = this.renderer.xr.getSession();
+            debugger;
             if (session && session.boundsGeometry) {
                 // Convert the bounds (DOMPointReadOnly) to an array of {x, y} points.
                 // Here we map x -> x and use z (or y from AR space if provided) as y.
                 console.log(session.boundsGeometry);
-                breakpoint;
                 const roomPolygon = session.boundsGeometry.map(pt => ({ x: pt.x, y: pt.z }));
                 // Optionally store the room boundary.
                 this.roomBoundary = roomPolygon;
