@@ -54,7 +54,8 @@ export default class GameManager {
                 // const boundaryLine = new THREE.LineLoop(geometry, lineMaterial);
                 
                 // Optionally, store this boundary for further logic (like enemy spawning)
-                this.roomBoundary = points.map(pt => ({ x: pt.x, y: pt.z }));
+                const spaceOffset = 1.5; // Offset enable making the boundries more reasonable for small rooms
+                this.roomBoundary = points.map(pt => ({ x: pt.x * spaceOffset, y: pt.z * spaceOffset }));
                 
                 // // Add the boundary visualization to the scene.
                 // this.scene.add(boundaryLine);
@@ -70,26 +71,6 @@ export default class GameManager {
               console.warn('Bounded reference space not available, falling back...', err);
             }
             
-            // NEW: Set up mesh-detection if available.
-            // Note: The event name and mesh data structure might vary based on the experimental API.
-            if (session.supportedFeatures && session.supportedFeatures.includes('mesh-detection')) {
-                session.addEventListener('meshdetection', (event) => {
-                // Assume event.meshData contains an array of vertices, each with a .y property.
-                const meshData = event.meshData;
-                let minY = Infinity;
-                let maxY = -Infinity;
-                meshData.vertices.forEach(vertex => {
-                    if (vertex.y < minY) minY = vertex.y;
-                    if (vertex.y > maxY) maxY = vertex.y;
-                });
-                const roomHeight = maxY - minY;
-                console.log("Room height (from mesh detection):", roomHeight);
-                // You might want to store this value for further use in your game logic.
-                this.roomHeight = roomHeight;
-                });
-            } else {
-                console.warn("Mesh detection feature not available in this session.");
-            }
 
             if (!this.gameStarted) {
               this.enemySpawnManager.spawnInitialEnemies();
