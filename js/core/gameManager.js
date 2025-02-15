@@ -35,9 +35,6 @@ export default class GameManager {
         // Handle window resize.
         window.addEventListener('resize', this.onWindowResize.bind(this));
 
-        // Start the render loop.
-        this.renderer.setAnimationLoop(this.render.bind(this));
-
         this.bulletArray = [];
 
         // NEW: When the AR session starts, update room boundary using the real AR bounds.
@@ -58,6 +55,8 @@ export default class GameManager {
                 this.enemySpawnManager.spawnInitialEnemies();
                 this.gameStarted = true;
             }
+            // Start the render loop only after AR session starts
+            this.renderer.setAnimationLoop(this.render.bind(this));
         });
 
     }
@@ -122,13 +121,9 @@ export default class GameManager {
     render() {
         const delta = clock.getDelta();
 
-        // Update the game timer if the game is not over.
+        // Only update the game if it's not over
         if (!this.gameOver) {
-            this.timeLeft -= delta;
-            if (this.timeLeft <= 0) {
-                this.timeLeft = 0;
-                this.gameOver = true;
-            }
+            this.updateGame(delta);
         }
 
         // Update bullets.
@@ -173,6 +168,17 @@ export default class GameManager {
 
         // Render the scene.
         this.renderer.render(this.scene, this.camera);
+    }
+
+    updateGame(delta) {
+        if (this.gameStarted) { // Only update if the game has started
+            this.timeLeft -= delta;
+            if (this.timeLeft <= 0) {
+                this.timeLeft = 0;
+                this.gameOver = true;
+            }
+            updateUIPanel(this.score, this.timeLeft, this.gameOver);
+        }
     }
 }
 
